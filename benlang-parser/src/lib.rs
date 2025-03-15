@@ -7,14 +7,13 @@ mod stmt_parser;
 
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::object::{Function, Object};
+use crate::object::Object;
 use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;
 use crate::stmt_parser::*;
 use anyhow::{Error, Result, anyhow, ensure};
-use slotmap::{SecondaryMap, SlotMap};
-use string_interner::symbol::SymbolU32;
+use slotmap::SlotMap;
 use thiserror::Error;
 
 pub type AST = Vec<StmtId>;

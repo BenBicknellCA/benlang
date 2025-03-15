@@ -1,15 +1,13 @@
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::{ParseError, Parser};
+use crate::Parser;
 
 use crate::object::Function;
 use crate::scanner::Symbol;
-use crate::scanner::{SymbolTable, Token};
+use crate::scanner::Token;
 use crate::stmt::*;
-use anyhow::{Error, Result, anyhow, ensure};
-use slotmap::{SlotMap, new_key_type};
-use string_interner::symbol::SymbolU32;
-use thiserror::Error;
+use anyhow::Result;
+use slotmap::new_key_type;
 
 new_key_type! {pub struct StmtId;}
 

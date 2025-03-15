@@ -1,6 +1,5 @@
 use crate::scanner::Symbol;
 use crate::stmt::Block;
-use crate::stmt_parser::StmtId;
 use slotmap::new_key_type;
 new_key_type! {pub struct FuncId; pub struct ObjId;}
 

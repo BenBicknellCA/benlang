@@ -1,10 +1,10 @@
 use crate::Precedence;
-use crate::expr::{Binary, BinaryOp, Expr, Unary, UnaryOp, Value, Variable};
+use crate::expr::{BinaryOp, Unary, UnaryOp, Value, Variable};
 use crate::scanner::Symbol;
-use crate::scanner::{SymbolTable, Token};
+use crate::scanner::Token;
 use crate::{ParseError, Parser};
-use anyhow::{Error, Result};
-use slotmap::{SlotMap, new_key_type};
+use anyhow::Result;
+use slotmap::new_key_type;
 
 new_key_type! {pub struct ExprId;}
 

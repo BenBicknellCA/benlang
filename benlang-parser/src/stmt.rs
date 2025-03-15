@@ -1,5 +1,5 @@
 use crate::expr_parser::ExprId;
-use crate::object::{Function, ObjId};
+use crate::object::Function;
 use crate::scanner::Symbol;
 use crate::stmt_parser::StmtId;
 
