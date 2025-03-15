@@ -1,0 +1,11 @@
+[package]
+name = "benlang-parser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.97"
+thiserror = "2.0.12"
+string-interner = "0.19.0"
+enum_dispatch = "0.3.13"
+slotmap = "1.0.7"
