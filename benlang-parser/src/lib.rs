@@ -1,9 +1,9 @@
 pub mod expr;
-mod expr_parser;
-mod object;
+pub mod expr_parser;
+pub mod object;
 pub mod scanner;
-mod stmt;
-mod stmt_parser;
+pub mod stmt;
+pub mod stmt_parser;
 
 use crate::expr::*;
 use crate::expr_parser::*;
@@ -141,12 +141,15 @@ pub struct ParserIter {
     current: Token,
 }
 
+pub type StmtPool = SlotMap<StmtId, Stmt>;
+pub type ExprPool = SlotMap<ExprId, Expr>;
+
 #[derive(Debug)]
 pub struct Parser {
     iter: ParserIter,
     ast: AST,
-    stmt_pool: SlotMap<StmtId, Stmt>,
-    expr_pool: SlotMap<ExprId, Expr>,
+    stmt_pool: StmtPool,
+    expr_pool: ExprPool,
     interner: SymbolTable,
 }
 

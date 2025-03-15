@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 benlang-parser = {path = "../benlang-parser"}
+petgraph = "0.7.1"

@@ -16,16 +16,6 @@ pub enum Stmt {
     Block(Block),
 }
 
-impl Stmt {
-    pub fn is_term(&self) -> bool {
-        // incomplete
-        matches!(
-            self,
-            Stmt::If(_) | Stmt::While(_) | Stmt::Return1(_) | Stmt::Return0
-        )
-    }
-}
-
 #[derive(Debug, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct While {
     cond: ExprId,
