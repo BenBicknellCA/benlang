@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["benlang", "benlang-parser"]
+members = [ "benlang","benlang-mem", "benlang-parser"]
