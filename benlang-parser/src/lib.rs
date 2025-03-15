@@ -114,7 +114,7 @@ struct TokenStream(std::vec::IntoIter<Token>);
 impl IntoIterator for TokenStream {
     type Item = Token;
     type IntoIter = std::vec::IntoIter<Self::Item>;
-
+cargo clippy --fix --lib -p benlang-parser
     fn into_iter(self) -> Self::IntoIter {
         self.0
     }
@@ -307,7 +307,7 @@ mod parser_tests {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {    
                     if (true == true) {
-                    var test_var = 1 + 1;
+                    var test_var = 1 + 1;cargo clippy --fix --lib -p benlang-parser
                     test_var + 1;
                 } else {
                     {
@@ -324,7 +324,7 @@ mod parser_tests {
 
         let mut parser = Parser::new(scanner.tokens, scanner.interner);
         if let Ok(ast) = parser.build_ast() {
-            todo!()
+          //TODO
         }
     }
 }
