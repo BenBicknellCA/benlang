@@ -4,7 +4,7 @@ mod ir;
 use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
 use benlang_parser::stmt_parser::StmtId;
-use benlang_parser::{ExprPool, StmtPool, stmt::Stmt};
+use benlang_parser::{ExprPool, StmtPool};
 
 use petgraph::{Graph, graph::NodeIndex};
 

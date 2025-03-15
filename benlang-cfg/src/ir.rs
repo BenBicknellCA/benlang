@@ -1,5 +1,3 @@
-use crate::basic_block::BasicBlock;
-use benlang_parser::expr::Expr;
 use benlang_parser::expr_parser::ExprId;
 use benlang_parser::object::Function;
 use benlang_parser::scanner::Symbol;
