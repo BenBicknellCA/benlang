@@ -1,4 +1,4 @@
-mod expr;
+pub mod expr;
 mod expr_parser;
 mod object;
 pub mod scanner;

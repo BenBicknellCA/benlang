@@ -12,11 +12,11 @@ use slotmap::new_key_type;
 new_key_type! {pub struct StmtId;}
 
 impl Parser {
-    pub fn for_statement(&mut self) -> Result<StmtId> {
+    fn for_statement(&mut self) -> Result<StmtId> {
         self.consume(Token::For)?;
         todo!()
     }
-    pub fn if_statement(&mut self) -> Result<StmtId> {
+    fn if_statement(&mut self) -> Result<StmtId> {
         self.consume(Token::If)?;
 
         self.consume(Token::LeftParen)?;
@@ -35,7 +35,7 @@ impl Parser {
 
         self.insert_stmt(Stmt::If(If::new(cond, then_, else_)))
     }
-    pub fn return_statement(&mut self) -> Result<StmtId> {
+    fn return_statement(&mut self) -> Result<StmtId> {
         self.consume(Token::Return)?;
 
         if self.check(Token::Semicolon).is_ok() {
@@ -47,12 +47,12 @@ impl Parser {
         self.insert_stmt(Stmt::Return1(to_ret))
     }
 
-    pub fn expr_stmt(&mut self) -> Result<StmtId> {
+    fn expr_stmt(&mut self) -> Result<StmtId> {
         let expr_key: ExprId = self.expression()?;
         self.consume(Token::Semicolon)?;
         self.insert_stmt(Stmt::Expr(expr_key))
     }
-    pub fn function(&mut self) -> Result<StmtId> {
+    fn function(&mut self) -> Result<StmtId> {
         self.consume(Token::Func)?;
         let name: Symbol = self.parse_var()?;
         self.consume(Token::LeftParen)?;
@@ -85,7 +85,7 @@ impl Parser {
         Ok(fun)
         //        self.insert_stmt(Stmt::Function(fun))
     }
-    pub fn var_declaration(&mut self) -> Result<StmtId> {
+    fn var_declaration(&mut self) -> Result<StmtId> {
         self.advance()?;
         let var_name = self.parse_var()?;
 
@@ -99,7 +99,7 @@ impl Parser {
         self.insert_stmt(Stmt::Var(var_name, var_val))
     }
 
-    pub fn while_statement(&mut self) -> Result<StmtId> {
+    fn while_statement(&mut self) -> Result<StmtId> {
         self.consume(Token::While)?;
         let cond = self.expression()?;
 
@@ -108,7 +108,7 @@ impl Parser {
         self.insert_stmt(Stmt::While(While::new(cond, body)))
     }
 
-    pub fn block(&mut self) -> Result<Block> {
+    fn block(&mut self) -> Result<Block> {
         self.consume(Token::LeftBrace)?;
         let mut block_stmts: Vec<StmtId> = Vec::new();
 
@@ -123,18 +123,18 @@ impl Parser {
         Ok(block)
     }
 
-    pub fn block_stmt(&mut self) -> Result<StmtId> {
+    fn block_stmt(&mut self) -> Result<StmtId> {
         let blck = self.block()?;
         let blck_stmt = self.stmt_pool.insert(Stmt::Block(blck));
         Ok(blck_stmt)
     }
 
-    pub fn print_stmt(&mut self) -> Result<StmtId> {
+    fn print_stmt(&mut self) -> Result<StmtId> {
         let to_print = self.expression()?;
         self.insert_stmt(Stmt::Print(to_print))
     }
 
-    pub fn statement(&mut self) -> Result<StmtId> {
+    fn statement(&mut self) -> Result<StmtId> {
         let stmt_key = match self.iter.current {
             Token::For => self.for_statement(),
             Token::If => self.if_statement(),
@@ -149,7 +149,7 @@ impl Parser {
         Ok(stmt_key)
     }
 
-    pub fn class_decl(&mut self) -> Result<StmtId> {
+    fn class_decl(&mut self) -> Result<StmtId> {
         self.advance()?;
         todo!()
     }

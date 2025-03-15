@@ -110,15 +110,6 @@ pub struct Variable(pub Symbol);
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Grouping(pub Symbol);
 
-impl ToExpr for Binary {}
-impl ToExpr for Unary {}
-impl ToExpr for Value {}
-impl ToExpr for Assign {}
-impl ToExpr for crate::Stmt {}
-impl ToExpr for Identifier {}
-impl ToExpr for Variable {}
-impl ToExpr for Grouping {}
-
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Call {
     callee: ExprId,

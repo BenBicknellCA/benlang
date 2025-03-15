@@ -17,6 +17,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "benlang-cfg"
+version = "0.1.0"
+dependencies = [
+ "benlang-parser",
+]
+
+[[package]]
 name = "benlang-mem"
 version = "0.1.0"
 dependencies = [
