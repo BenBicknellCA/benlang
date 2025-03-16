@@ -110,16 +110,21 @@ impl Parser {
 
     fn block(&mut self) -> Result<Block> {
         self.consume(Token::LeftBrace)?;
-        let mut block_stmts: Vec<StmtId> = Vec::new();
+        let mut block: Block = Block::new(Vec::new());
 
         if self.check(Token::RightBrace).is_err() {
             while self.check(Token::RightBrace).is_err() {
-                block_stmts.push(self.declaration()?);
+                let decl = self.declaration()?;
+                if let Some(stmt) = self.stmt_pool.get(decl) {
+                    if stmt.is_term() {
+                        block.leaders.push(block.body.len() + 1);
+                    }
+                }
+                block.add_stmt_id(decl);
             }
         };
 
         self.consume(Token::RightBrace)?;
-        let block: Block = Block::new(block_stmts);
         Ok(block)
     }
 

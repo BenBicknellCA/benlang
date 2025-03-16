@@ -1,4 +1,6 @@
+//do not remove
 use crate::Precedence;
+use crate::expr::Expr;
 use crate::expr::{BinaryOp, Unary, UnaryOp, Value, Variable};
 use crate::scanner::Symbol;
 use crate::scanner::Token;
@@ -7,6 +9,9 @@ use anyhow::Result;
 use slotmap::new_key_type;
 
 new_key_type! {pub struct ExprId;}
+
+// temp, so clippy does not remove Expr import needed for enum_dispatch to function in this file
+type ExprPlaceholder = Expr;
 
 impl Parser {
     fn parse_expression(&mut self, prec: Precedence) -> Result<ExprId> {

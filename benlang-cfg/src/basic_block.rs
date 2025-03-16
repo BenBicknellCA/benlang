@@ -1,5 +1,6 @@
 use crate::ir::Ir;
 use benlang_parser::stmt::Stmt;
+use petgraph::graph::NodeIndex;
 
 #[derive(Default, Debug)]
 pub struct BasicBlock {
@@ -8,10 +9,15 @@ pub struct BasicBlock {
 }
 
 impl BasicBlock {
-    pub fn is_stmt_term(stmt: &Stmt) -> bool {
-        matches!(
-            stmt,
-            Stmt::If(_) | Stmt::While(_) | Stmt::Return0 | Stmt::Return1(_) | Stmt::Block(_)
-        )
+    pub fn append_body(&mut self, ir_stmt: Ir) {
+        self.statements.push(ir_stmt);
+    }
+
+    pub fn set_term(&mut self, terminator: Ir) {
+        self.terminator = Some(terminator)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.statements.is_empty() && self.terminator.is_none()
     }
 }
