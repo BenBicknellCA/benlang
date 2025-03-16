@@ -37,25 +37,6 @@ impl<'a> CFGBuilder<'a> {
         }
     }
 
-    fn print_ir(&self, ir: &Ir) {
-        //        match ir {
-        //            Ir::Expr(expr) => {
-        //                print!("expr: ");
-        //                self.print_expr(expr);
-        //            },
-        //            _ =>
-        //        }
-        //        if let Some(stmt) = self.stmt_pool.get(stmt_id) {
-        //            match stmt {
-        //                Stmt::Expr(expr) => {
-        //                    print!("expr stmt: ");
-        //                    self.print_expr(*expr)
-        //                }
-        //                _ => println!("stmt: {stmt:?}"),
-        //            }
-        //        }
-    }
-
     fn print_expr(&self, expr_id: ExprId) {
         let expr = self.expr_pool.get(expr_id).unwrap();
         println!("expr: {expr:?}");
@@ -102,13 +83,6 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn add_empty_node_and_set_current(&mut self) -> NodeIndex {
-        let current_weight = self.get_current_bb().statements.last();
-        if let Some(Ir::Expr(last_stmt)) = current_weight {
-            print!("LAST NON TERM STMT IN NODE BEFORE SETTING EMPTY AS CURRENT: ");
-            self.print_expr(*last_stmt);
-        } else {
-            println!("NO LAST NON TERM STMT");
-        }
         self.current_node = self.cfg.add_node(BasicBlock::default());
         self.current_node
     }
@@ -166,31 +140,6 @@ impl<'a> CFGBuilder<'a> {
         //while body back to condition, body back to condition is done in first edge created in
         //func
         self.cfg.add_edge(wbn, cond_node, None);
-    }
-
-    fn conditional<T: Conditional + std::fmt::Debug>(&mut self, cond_stmt: &T) {
-        //        let exit_node = self.add_empty_node();
-        //
-        //        let is_while = T::is_while();
-        //
-        //        if is_while {
-        //            //while body back to condition, body back to condition is done in first edge created in
-        //            //func
-        //            self.cfg.add_edge(first_branch_node, cond_idx, None);
-        //
-        //            self.cfg.add_edge(first_branch_node, exit_node, None);
-        //        } else {
-        //            self.cfg.add_edge(first_branch_node, exit_node, Some(false));
-        //        };
-        //
-        //        if let Some(second_branch_block) = cond_stmt.second_block() {
-        //            let second_branch_node = self.add_empty_node_and_set_current();
-        //            self.cfg.add_edge(cond_idx, second_branch_node, Some(true));
-        //
-        //            self.cfg.add_edge(second_branch_node, exit_node, None);
-        //
-        //            self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
-        //        }
     }
 
     fn ret_0(&mut self) {
