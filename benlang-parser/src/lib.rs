@@ -1,9 +1,9 @@
-mod expr;
-mod expr_parser;
-mod object;
+pub mod expr;
+pub mod expr_parser;
+pub mod object;
 pub mod scanner;
-mod stmt;
-mod stmt_parser;
+pub mod stmt;
+pub mod stmt_parser;
 
 use crate::expr::*;
 use crate::expr_parser::*;
@@ -141,12 +141,15 @@ pub struct ParserIter {
     current: Token,
 }
 
+pub type StmtPool = SlotMap<StmtId, Stmt>;
+pub type ExprPool = SlotMap<ExprId, Expr>;
+
 #[derive(Debug)]
 pub struct Parser {
     iter: ParserIter,
     ast: AST,
-    stmt_pool: SlotMap<StmtId, Stmt>,
-    expr_pool: SlotMap<ExprId, Expr>,
+    pub stmt_pool: StmtPool,
+    pub expr_pool: ExprPool,
     interner: SymbolTable,
 }
 
@@ -300,13 +303,19 @@ mod parser_tests {
     use super::*;
     use crate::scanner::Scanner;
 
-    #[test]
+    fn prep_parser(source: &'static str) -> Parser {
+        let mut scanner = Scanner::new(source);
+        scanner.scan();
 
+        Parser::new(scanner.tokens, scanner.interner)
+    }
+
+    #[test]
     fn parse_func() {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {    
                     if (true == true) {
-                    var test_var = 1 + 1;cargo clippy --fix --lib -p benlang-parser
+                    var test_var = 1 + 1;
                     test_var + 1;
                 } else {
                     {
@@ -318,12 +327,14 @@ mod parser_tests {
                     }}
                 }
             }";
-        let mut scanner = Scanner::new(SOURCE);
-        scanner.scan();
 
-        let mut parser = Parser::new(scanner.tokens, scanner.interner);
-        if let Ok(ast) = parser.build_ast() {
-            //TODO
-        }
+        let mut parser = prep_parser(SOURCE);
+        assert!(parser.build_ast().is_ok());
+    }
+
+    fn parse_block() {
+        static SOURCE: &str = "{}";
+        let mut parser = prep_parser(SOURCE);
+        // TODO
     }
 }

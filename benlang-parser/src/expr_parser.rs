@@ -1,4 +1,6 @@
+//do not remove
 use crate::Precedence;
+use crate::expr::Expr;
 use crate::expr::{BinaryOp, Unary, UnaryOp, Value, Variable};
 use crate::scanner::Symbol;
 use crate::scanner::Token;
@@ -8,8 +10,11 @@ use slotmap::new_key_type;
 
 new_key_type! {pub struct ExprId;}
 
+// temp, so clippy does not remove Expr import needed for enum_dispatch to function in this file
+type ExprPlaceholder = Expr;
+
 impl Parser {
-    pub fn parse_expression(&mut self, prec: Precedence) -> Result<ExprId> {
+    fn parse_expression(&mut self, prec: Precedence) -> Result<ExprId> {
         let mut token = self.advance()?;
         let mut left: ExprId = self.prefix(token)?;
 
@@ -24,21 +29,21 @@ impl Parser {
         self.parse_expression(Precedence::Assignment)
     }
 
-    pub fn unary(&mut self) -> Result<ExprId> {
+    fn unary(&mut self) -> Result<ExprId> {
         let op: UnaryOp = UnaryOp::try_from(self.iter.prev)?;
         let expr = self.parse_expression(Precedence::Unary)?;
         self.insert_expr(Unary(op, expr).into())
     }
 
-    pub fn string_lit(&mut self, string_key: Symbol) -> Result<ExprId> {
+    fn string_lit(&mut self, string_key: Symbol) -> Result<ExprId> {
         self.insert_expr(Value::StringLiteral(string_key).into())
     }
 
-    pub fn number(&mut self, num: f32) -> Result<ExprId> {
+    fn number(&mut self, num: f32) -> Result<ExprId> {
         self.insert_expr(Value::Number(num).into())
     }
 
-    pub fn primary(&mut self, token: Token) -> Result<ExprId> {
+    fn primary(&mut self, token: Token) -> Result<ExprId> {
         match token {
             Token::Number(num) => self.number(num),
             Token::StringLiteral(strng) => self.string_lit(strng),
@@ -47,12 +52,12 @@ impl Parser {
             _ => Err(ParseError::InvalidPrimary { primary: token }.into()),
         }
     }
-    pub fn grouping(&mut self) -> anyhow::Result<ExprId> {
+    fn grouping(&mut self) -> anyhow::Result<ExprId> {
         let expr = self.parse_expression(Precedence::Assignment)?;
         self.consume(Token::RightParen)?;
         Ok(expr)
     }
-    pub fn variable(&mut self, iden: Symbol) -> Result<ExprId> {
+    fn variable(&mut self, iden: Symbol) -> Result<ExprId> {
         // TODO
         self.insert_expr(Variable(iden).into())
     }
@@ -84,7 +89,7 @@ impl Parser {
         }
     }
 
-    pub fn binary(&mut self, pre_lhs: ExprId) -> Result<ExprId> {
+    fn binary(&mut self, pre_lhs: ExprId) -> Result<ExprId> {
         let op: Token = self.iter.prev;
 
         let prec = Precedence::try_from(self.iter.prev_prec() as u32 + 1)?;

@@ -24,5 +24,5 @@ impl Function {
 
 #[derive(Debug, PartialEq, Clone, PartialOrd, Hash, Eq)]
 pub enum Object {
-    Function(FuncId),
+    Function(Function),
 }
