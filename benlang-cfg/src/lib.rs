@@ -12,10 +12,7 @@ use benlang_parser::{
     stmt::{Block, Conditional, If, Stmt, While},
 };
 
-use petgraph::{
-    Graph,
-    graph::NodeIndex,
-};
+use petgraph::{Graph, graph::NodeIndex};
 
 #[derive(Debug)]
 pub struct CFGBuilder<'a> {
@@ -245,10 +242,10 @@ mod cfg_tests {
         let mut cfg_builder = CFGBuilder::new(&parser.stmt_pool, &parser.expr_pool);
         if let Some(Stmt::Function(func)) = cfg_builder.stmt_pool.get(func_id) {
             cfg_builder.build_func_cfg(func);
-//            println!(
-//                "{:?}",
-//                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeNoLabel])
-//            );
+            //            println!(
+            //                "{:?}",
+            //                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeNoLabel])
+            //            );
         }
     }
 }
