@@ -14,7 +14,7 @@ use benlang_parser::{
 
 use petgraph::{
     Graph,
-    graph::{EdgeIndex, NodeIndex},
+    graph::NodeIndex,
 };
 
 #[derive(Debug)]

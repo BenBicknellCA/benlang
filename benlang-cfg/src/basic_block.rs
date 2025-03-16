@@ -1,6 +1,4 @@
 use crate::ir::Ir;
-use benlang_parser::stmt::Stmt;
-use petgraph::graph::NodeIndex;
 
 #[derive(Default, Debug)]
 pub struct BasicBlock {
