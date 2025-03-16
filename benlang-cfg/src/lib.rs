@@ -121,7 +121,7 @@ impl<'a> CFGBuilder<'a> {
         }
     }
 
-    fn conditional<T: Conditional + std::fmt::Debug>(&mut self, cond_stmt: &T) {
+    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> (NodeIndex, NodeIndex) {
         let cond: ExprId = cond_stmt.cond();
         let cond_ir = self.expr_to_ir(cond);
         let cond_idx = self.current_node;
@@ -134,28 +134,63 @@ impl<'a> CFGBuilder<'a> {
         self.cfg.add_edge(cond_idx, first_branch_node, Some(true));
 
         self.process_split_vec(first_branch_block.get_body_split_at_leaders().as_ref());
+        (cond_idx, first_branch_node)
+    }
+
+    fn process_if_stmt(&mut self, if_stmt: &If) {
+        let (cond_node, fbn) = self.prep_cond(if_stmt);
         let exit_node = self.add_empty_node();
 
-        let is_while = T::is_while();
+        // condition to first branch handled in fn prep_cond
 
-        if is_while {
-            //while body back to condition, body back to condition is done in first edge created in
-            //func
-            self.cfg.add_edge(first_branch_node, cond_idx, None);
+        // first branch to exit
+        self.cfg.add_edge(fbn, exit_node, None);
 
-            self.cfg.add_edge(first_branch_node, exit_node, None);
-        } else {
-            self.cfg.add_edge(first_branch_node, exit_node, Some(false));
-        };
-
-        if let Some(second_branch_block) = cond_stmt.second_block() {
+        if let Some(second_branch_block) = if_stmt.second_block() {
             let second_branch_node = self.add_empty_node_and_set_current();
-            self.cfg.add_edge(cond_idx, second_branch_node, Some(true));
 
+            // condition to second branch
+            self.cfg.add_edge(cond_node, second_branch_node, Some(true));
+
+            // second branch to exit
             self.cfg.add_edge(second_branch_node, exit_node, None);
 
             self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
         }
+        self.current_node = exit_node;
+    }
+
+    fn process_while_stmt(&mut self, while_stmt: &While) {
+        // condition node and while body node
+        let (cond_node, wbn) = self.prep_cond(while_stmt);
+        //while body back to condition, body back to condition is done in first edge created in
+        //func
+        self.cfg.add_edge(wbn, cond_node, None);
+    }
+
+    fn conditional<T: Conditional + std::fmt::Debug>(&mut self, cond_stmt: &T) {
+        //        let exit_node = self.add_empty_node();
+        //
+        //        let is_while = T::is_while();
+        //
+        //        if is_while {
+        //            //while body back to condition, body back to condition is done in first edge created in
+        //            //func
+        //            self.cfg.add_edge(first_branch_node, cond_idx, None);
+        //
+        //            self.cfg.add_edge(first_branch_node, exit_node, None);
+        //        } else {
+        //            self.cfg.add_edge(first_branch_node, exit_node, Some(false));
+        //        };
+        //
+        //        if let Some(second_branch_block) = cond_stmt.second_block() {
+        //            let second_branch_node = self.add_empty_node_and_set_current();
+        //            self.cfg.add_edge(cond_idx, second_branch_node, Some(true));
+        //
+        //            self.cfg.add_edge(second_branch_node, exit_node, None);
+        //
+        //            self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
+        //        }
     }
 
     fn ret_0(&mut self) {
@@ -176,8 +211,8 @@ impl<'a> CFGBuilder<'a> {
     fn term_stmt(&mut self, stmt: StmtId) {
         if let Some(term_stmt) = self.stmt_pool.get(stmt) {
             match term_stmt {
-                Stmt::If(ifstmt) => self.conditional(ifstmt),
-                Stmt::While(whilestmt) => self.conditional(whilestmt),
+                Stmt::If(ifstmt) => self.process_if_stmt(ifstmt),
+                Stmt::While(whilestmt) => self.process_while_stmt(whilestmt),
                 // block statements, different than If and While bodies
                 Stmt::Block(blck) => {
                     self.block_stmt(blck);
