@@ -1,6 +1,5 @@
-use string_interner::backend::BufferBackend;
 pub type Symbol = string_interner::DefaultSymbol;
-pub type SymbolTable = string_interner::StringInterner<BufferBackend>;
+pub type SymbolTable = string_interner::StringInterner<string_interner::backend::StringBackend>;
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

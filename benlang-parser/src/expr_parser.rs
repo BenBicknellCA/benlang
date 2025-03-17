@@ -58,7 +58,10 @@ impl Parser {
         Ok(expr)
     }
     fn variable(&mut self, iden: Symbol) -> Result<ExprId> {
-        // TODO
+        if self.consume(Token::Equal).is_ok() {
+            let expr = self.expression()?;
+            return self.insert_expr(crate::expr::Assign(Token::Identifier(iden), expr).into());
+        }
         self.insert_expr(Variable(iden).into())
     }
 

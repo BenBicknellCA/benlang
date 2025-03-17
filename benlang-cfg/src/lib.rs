@@ -1,9 +1,13 @@
 mod basic_block;
 mod ir;
+mod phi;
+mod ssa;
 
 use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
+use crate::ssa::SSABuilder;
 use benlang_parser::expr_parser::ExprId;
+use benlang_parser::scanner::{Symbol, SymbolTable};
 use benlang_parser::stmt_parser::StmtId;
 use benlang_parser::{
     ExprPool, StmtPool,
@@ -12,25 +16,31 @@ use benlang_parser::{
     stmt::{Block, Conditional, If, Stmt, While},
 };
 
-use petgraph::{Graph, graph::NodeIndex};
+use petgraph::{
+    Direction, Graph,
+    graph::{Edges, NodeIndex},
+};
+pub type CFG = Graph<BasicBlock, Option<bool>>;
 
-#[derive(Debug)]
-pub struct CFGBuilder<'a> {
+pub struct CFGBuilder {
     current_node: NodeIndex,
-    cfg: Graph<BasicBlock, Option<bool>>,
-    stmt_pool: &'a StmtPool,
-    expr_pool: &'a ExprPool,
+    cfg: CFG,
+    ssa: SSABuilder,
+    stmt_pool: StmtPool,
+    expr_pool: ExprPool,
 }
 
-impl<'a> CFGBuilder<'a> {
-    fn new(stmt_pool: &'a StmtPool, expr_pool: &'a ExprPool) -> Self {
+impl CFGBuilder {
+    fn new(symbol_table: SymbolTable, stmt_pool: StmtPool, expr_pool: ExprPool) -> Self {
         let mut cfg: Graph<BasicBlock, Option<bool>> = Graph::new();
         let current_node = cfg.add_node(BasicBlock::default());
+        let ssa = SSABuilder::new(symbol_table);
         CFGBuilder {
+            cfg,
+            ssa,
             stmt_pool,
             expr_pool,
             current_node,
-            cfg,
         }
     }
 
@@ -52,7 +62,10 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn add_empty_node(&mut self) -> NodeIndex {
-        self.cfg.add_node(BasicBlock::default())
+        let node_index = self.cfg.add_node(BasicBlock::default());
+        self.cfg.node_weight_mut(node_index).unwrap().node_index = node_index;
+        let _ = self.ssa.add_block(node_index, &self.cfg, false);
+        node_index
     }
 
     fn add_ir_stmt_to_current_node(&mut self, ir_stmt: Ir) {
@@ -80,7 +93,7 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn add_empty_node_and_set_current(&mut self) -> NodeIndex {
-        self.current_node = self.cfg.add_node(BasicBlock::default());
+        self.current_node = self.add_empty_node();
         self.current_node
     }
 
@@ -155,52 +168,99 @@ impl<'a> CFGBuilder<'a> {
     }
 
     fn term_stmt(&mut self, stmt: StmtId) {
-        if let Some(term_stmt) = self.stmt_pool.get(stmt) {
-            match term_stmt {
-                Stmt::If(ifstmt) => self.process_if_stmt(ifstmt),
-                Stmt::While(whilestmt) => self.process_while_stmt(whilestmt),
+        if let Some(stmt) = self.stmt_pool.remove(stmt) {
+            println!("{stmt:?}");
+            assert!(stmt.is_term());
+            match stmt {
+                Stmt::If(ifstmt) => {
+                    self.process_if_stmt(&ifstmt);
+                }
+                Stmt::While(whilestmt) => {
+                    self.process_while_stmt(&whilestmt);
+                }
                 // block statements, different than If and While bodies
                 Stmt::Block(blck) => {
-                    self.block_stmt(blck);
+                    self.block_stmt(&blck);
                 }
                 Stmt::Return0 => self.ret_0(),
-                Stmt::Return1(val) => self.ret_1(*val),
+                Stmt::Return1(val) => self.ret_1(val),
                 Stmt::Function(_) => todo!(),
-                _ => unreachable!("not a term"),
+                _ => unreachable!("not a term: {stmt:?}"),
+            };
+        }
+    }
+
+    fn get_all_vars_used_in_expr(expr_pool: &ExprPool, expr_id: ExprId, vec: &mut Vec<Symbol>) {
+        let expr = &expr_pool[expr_id];
+        match expr {
+            Expr::Binary(bin) => {
+                let lhs = bin.0;
+                let rhs = bin.2;
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, lhs, vec);
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, rhs, vec);
             }
-            //            if !term_stmt.is_conditional() {
-            //                self.add_uncond_exit_node();
-            //            }
+            Expr::Unary(unary) => {
+                let opnd = unary.1;
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, opnd, vec);
+            }
+            Expr::Stmt(stmt) => {
+                todo!()
+            }
+            Expr::Call(call) => {
+                todo!()
+            }
+            Expr::Assign(assign) => {
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.1, vec);
+            }
+            Expr::Value(val) => {}
+            Expr::Identifier(iden) => {
+                todo!()
+            }
+            Expr::Grouping(group) => {
+                todo!()
+            }
+            Expr::Variable(var) => {
+                vec.push(var.0);
+            }
         }
     }
 
     fn stmt(&mut self, stmt_id: StmtId) {
         let stmt = &self.stmt_pool[stmt_id];
+
         // stmt is not a terminator
         if let Ok(ir_stmt) = Ir::try_from(stmt) {
-            return self.add_ir_stmt_to_current_node(ir_stmt);
-            //        self.cfg.get_(self.current_node).statements.push(ir_stmt);
-        };
+            let mut vec = Vec::new();
+            if let Ir::Var(name, val) = ir_stmt {
+                let _ = self
+                    .ssa
+                    .write_variable(name, self.current_node, ssa::PhiOrExpr::Expr(val));
+            }
+            self.ssa.process_all_vars_in_expr(
+                &self.expr_pool,
+                ir_stmt.get_expr().unwrap(),
+                &mut vec,
+                self.current_node,
+                &self.cfg,
+            );
+            return;
+        }
+        assert!(self.stmt_pool[stmt_id].is_term());
         self.term_stmt(stmt_id);
-
-        //    if !BasicBlock::is_stmt_term(stmt) {};
-        //        match stmt {
-        //            Stmt::If(ifstmt) => {},
-        //            Stmt::While(whilestmt) => {},
-        //            Stmt::Var(name, val) => {},
-        //            Stmt::Block(block) => {},
-        //            Stmt::Expr(expr) => {},
-        //            Stmt::Return0 => {},
-        //            Stmt::Return1(val) => {},
-        //            Stmt::Function(func) => {},
-        //            Stmt::Print(prnt) => {},
-        //        }
     }
 
     pub fn build_func_cfg(&mut self, func: &Function) {
         for stmt in &func.body.body {
             self.stmt(*stmt);
         }
+    }
+
+    pub fn get_node_preds(&self, node: NodeIndex) -> Edges<Option<bool>, petgraph::Directed> {
+        self.cfg.edges_directed(node, Direction::Incoming)
+    }
+
+    pub fn get_node_preds_count(&self, node: NodeIndex) -> usize {
+        self.get_node_preds(node).count()
     }
 }
 
@@ -211,41 +271,52 @@ mod cfg_tests {
     use benlang_parser::Parser;
     use benlang_parser::scanner::Scanner;
     use petgraph::dot::{Config, Dot};
-    #[test]
 
-    fn test_build_cfg() {
+    pub fn prep_parser() -> Parser {
         static SOURCE: &str = "
-            func test_func(first_param, second_param) {    
-                    if (true == true) {
+            func test_func(first_param, second_param) {
                     var test_var = 1 + 1;
-                    test_var - 1;
-                    } else
-                    {
+                    if (true == true) {
+                        test_var = 3;
+                    } else {
+                        test_var = 4;
+                    }
                     var extra_block = 123123;
-                    while (true) 
+                    while (true)
                     {
                         2 * 2;
                         3 / 3;
                         1 - 1;
                     }
                     var afterwhile = 321321;
-                }
-                1 / 2 / 3;
+                    1 / 2 / 3;
             }";
         let mut scanner = Scanner::new(SOURCE);
         scanner.scan();
 
         let mut parser = Parser::new(scanner.tokens, scanner.interner);
         let ast = parser.build_ast().unwrap();
-        let func_id: StmtId = ast[0];
+        parser
+    }
 
-        let mut cfg_builder = CFGBuilder::new(&parser.stmt_pool, &parser.expr_pool);
-        if let Some(Stmt::Function(func)) = cfg_builder.stmt_pool.get(func_id) {
+    pub fn build_cfg() -> CFGBuilder {
+        let mut parser = prep_parser();
+        let ast = parser.build_ast().unwrap();
+        let func_id: StmtId = ast[0];
+        let func = &parser.stmt_pool[func_id].clone();
+        let mut cfg_builder = CFGBuilder::new(parser.interner, parser.stmt_pool, parser.expr_pool);
+        if let Stmt::Function(func) = func {
             cfg_builder.build_func_cfg(func);
             //            println!(
             //                "{:?}",
             //                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeNoLabel])
             //            );
-        }
+        };
+        cfg_builder
+    }
+
+    #[test]
+    fn test_build_cfg() {
+        let cfg = build_cfg();
     }
 }

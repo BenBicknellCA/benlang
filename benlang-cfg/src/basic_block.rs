@@ -1,9 +1,11 @@
 use crate::ir::Ir;
+use petgraph::graph::NodeIndex;
 
 #[derive(Default, Debug)]
 pub struct BasicBlock {
     pub statements: Vec<Ir>,
     pub terminator: Option<Ir>,
+    pub node_index: NodeIndex,
 }
 
 impl BasicBlock {
