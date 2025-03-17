@@ -164,3 +164,52 @@ impl Index<NodeIndex> for VarDefs {
         &self.0[&node_index]
     }
 }
+
+impl crate::SSABuilder {
+    fn borrow_inc_phis_mut(incomplete_phis: &mut IncompletePhis) -> &mut IncompletePhis {
+        incomplete_phis
+    }
+    pub fn borrow_inc_phis_mut_pub(&mut self) -> &mut IncompletePhis {
+        Self::borrow_inc_phis_mut(&mut self.incomplete_phis)
+    }
+    fn borrow_var_defs_mut(var_defs: &mut VarDefs) -> &mut VarDefs {
+        var_defs
+    }
+    pub fn borrow_var_defs_mut_pub(&mut self) -> &mut VarDefs {
+        Self::borrow_var_defs_mut(&mut self.var_defs)
+    }
+    fn borrow_sealed_blocks_mut(sealed_blocks: &mut SealedBlocks) -> &mut SealedBlocks {
+        sealed_blocks
+    }
+    pub fn borrow_sealed_blocks_mut_pub(&mut self) -> &mut SealedBlocks {
+        Self::borrow_sealed_blocks_mut(&mut self.sealed_blocks)
+    }
+    fn borrow_phis_mut(phis: &mut Phis) -> &mut Phis {
+        phis
+    }
+    pub fn borrow_phis_mut_pub(&mut self) -> &mut Phis {
+        Self::borrow_phis_mut(&mut self.phis)
+    }
+    fn borrow_phis_to_block_mut(phis_to_block: &mut PhisToBlock) -> &mut PhisToBlock {
+        phis_to_block
+    }
+    pub fn borrow_phis_to_block_mut_pub(&mut self) -> &mut PhisToBlock {
+        Self::borrow_phis_to_block_mut(&mut self.phis_to_block)
+    }
+    fn borrow_phi_opnds_mut(phi_opnds: &mut PhiOperands) -> &mut PhiOperands {
+        phi_opnds
+    }
+
+    pub fn borrow_phi_opnds_mut_pub(&mut self) -> &mut PhiOperands {
+        Self::borrow_phi_opnds_mut(&mut self.phi_operands)
+    }
+
+    fn borrow_phi_users_mut(phi_users: &mut PhiUsers) -> &mut PhiUsers {
+        phi_users
+    }
+
+    pub fn borrow_phi_users_mut_pub(&mut self) -> &mut PhiUsers {
+        Self::borrow_phi_users_mut(&mut self.phi_users)
+    }
+
+}
