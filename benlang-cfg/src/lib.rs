@@ -64,17 +64,7 @@ impl CFGBuilder {
     fn add_empty_node(&mut self) -> NodeIndex {
         let node_index = self.cfg.add_node(BasicBlock::default());
         self.cfg.node_weight_mut(node_index).unwrap().node_index = node_index;
-        let _ = SSABuilder::add_block(
-            node_index,
-            &mut self.ssa.incomplete_phis,
-            &mut self.ssa.phi_operands,
-            &self.cfg,
-            &mut self.ssa.phis,
-            &mut self.ssa.var_defs,
-            &mut self.ssa.phis_to_block,
-            false,
-            &mut self.ssa.sealed_blocks,
-        );
+        let _ = self.ssa.add_block(node_index, &self.cfg, false);
         node_index
     }
 
@@ -242,25 +232,16 @@ impl CFGBuilder {
         if let Ok(ir_stmt) = Ir::try_from(stmt) {
             let mut vec = Vec::new();
             if let Ir::Var(name, val) = ir_stmt {
-                let _ = SSABuilder::write_variable(
-                    &mut self.ssa.var_defs,
-                    name,
-                    self.current_node,
-                    ssa::PhiOrExpr::Expr(val),
-                );
+                let _ = self
+                    .ssa
+                    .write_variable(name, self.current_node, ssa::PhiOrExpr::Expr(val));
             }
-            SSABuilder::process_all_vars_in_expr(
+            self.ssa.process_all_vars_in_expr(
                 &self.expr_pool,
                 ir_stmt.get_expr().unwrap(),
                 &mut vec,
-                &mut self.ssa.incomplete_phis,
                 self.current_node,
                 &self.cfg,
-                &mut self.ssa.phis,
-                &mut self.ssa.phi_operands,
-                &mut self.ssa.var_defs,
-                &mut self.ssa.phis_to_block,
-                &mut self.ssa.sealed_blocks,
             );
             return;
         }
