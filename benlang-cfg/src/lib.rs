@@ -9,6 +9,7 @@ use crate::ssa::SSABuilder;
 use benlang_parser::expr_parser::ExprId;
 use benlang_parser::scanner::{Symbol, SymbolTable};
 use benlang_parser::stmt_parser::StmtId;
+use anyhow::{Result, Error};
 use benlang_parser::{
     ExprPool, StmtPool,
     expr::Expr,
@@ -34,7 +35,8 @@ impl CFGBuilder {
     fn new(symbol_table: SymbolTable, stmt_pool: StmtPool, expr_pool: ExprPool) -> Self {
         let mut cfg: Graph<BasicBlock, Option<bool>> = Graph::new();
         let current_node = cfg.add_node(BasicBlock::default());
-        let ssa = SSABuilder::new(symbol_table);
+        let mut ssa = SSABuilder::new(symbol_table);
+        ssa.add_block(current_node, &cfg, false).unwrap();
         CFGBuilder {
             cfg,
             ssa,
@@ -121,9 +123,10 @@ impl CFGBuilder {
         (cond_idx, first_branch_node)
     }
 
-    fn process_if_stmt(&mut self, if_stmt: &If) {
+    fn process_if_stmt(&mut self, if_stmt: &If) -> Result<()> {
         let (cond_node, fbn) = self.prep_cond(if_stmt);
         let exit_node = self.add_empty_node();
+        self.ssa.seal_block(fbn, &self.cfg)?;
 
         // condition to first branch handled in fn prep_cond
 
@@ -140,16 +143,21 @@ impl CFGBuilder {
             self.cfg.add_edge(second_branch_node, exit_node, None);
 
             self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
+            self.ssa.seal_block(second_branch_node, &self.cfg)?;
         }
+        self.ssa.seal_block(cond_node, &self.cfg)?;
         self.current_node = exit_node;
+        Ok(())
     }
 
-    fn process_while_stmt(&mut self, while_stmt: &While) {
+    fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
         // condition node and while body node
         let (cond_node, wbn) = self.prep_cond(while_stmt);
         //while body back to condition, body back to condition is done in first edge created in
         //func
         self.cfg.add_edge(wbn, cond_node, None);
+        self.ssa.seal_block(wbn, &self.cfg)?;
+        self.ssa.seal_block(cond_node, &self.cfg)
     }
 
     fn ret_0(&mut self) {
@@ -249,10 +257,19 @@ impl CFGBuilder {
         self.term_stmt(stmt_id);
     }
 
-    pub fn build_func_cfg(&mut self, func: &Function) {
+    pub fn build_func_cfg(&mut self, func: &Function) -> Result<()> {
+        let mut seal_exit = false;
         for stmt in &func.body.body {
+            if seal_exit {
+                self.ssa.seal_block(self.current_node, &self.cfg)?;
+                seal_exit = false;
+            }
+            if self.stmt_pool[*stmt].is_term() {
+                seal_exit = true;
+            };
             self.stmt(*stmt);
         }
+        Ok(())
     }
 
     pub fn get_node_preds(&self, node: NodeIndex) -> Edges<Option<bool>, petgraph::Directed> {

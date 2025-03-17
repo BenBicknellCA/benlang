@@ -66,6 +66,7 @@ impl<'a> SSABuilder {
     pub fn add_block(&mut self, block: NodeIndex, cfg: &CFG, seal: bool) -> Result<()> {
         self.borrow_inc_phis_mut_pub().insert(block, HashSet::new());
         self.borrow_var_defs_mut_pub().insert(block, HashMap::new());
+        self.borrow_inc_phis_mut_pub().insert(block, HashSet::new());
         if seal {
             self.seal_block(block, cfg)?;
         };
@@ -201,8 +202,9 @@ impl<'a> SSABuilder {
         self.phi_users[phi].as_slice()
     }
 
-    fn seal_block(&mut self, block: NodeIndex, cfg: &CFG) -> Result<()> {
+    pub fn seal_block(&mut self, block: NodeIndex, cfg: &CFG) -> Result<()> {
         let mut to_process = Vec::new();
+        println!("seal: {block:?}");
         while let Some(&var) = self.incomplete_phis[block].iter().next() {
             to_process.push(var);
         }
@@ -318,6 +320,12 @@ impl<'a> SSABuilder {
         self.write_variable(variable, block, val)?;
         Ok(val)
     }
+
+
+
+
+
+
 }
 
 #[cfg(test)]
