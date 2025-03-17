@@ -5,9 +5,9 @@
 
 use crate::CFG;
 use crate::phi::*;
-use anyhow::{Error, Result, anyhow, ensure};
+use anyhow::{Result, anyhow};
 use benlang_parser::{
-    ExprPool, StmtPool,
+    ExprPool,
     expr_parser::ExprId,
     scanner::{Symbol, SymbolTable},
 };
@@ -17,7 +17,6 @@ use petgraph::{Directed, Direction};
 use slotmap::new_key_type;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
-use thiserror::Error;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PhiOrExpr {
@@ -200,8 +199,7 @@ impl<'a> SSABuilder {
             value,
             variable,
             block
-        )
-        .into())
+        ))
     }
 
     pub fn read_variable(
