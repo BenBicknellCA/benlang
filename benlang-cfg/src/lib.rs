@@ -114,6 +114,8 @@ impl CFGBuilder {
 
         self.set_current_node_term(cond_ir);
 
+        self.ssa.seal_block(cond_idx, &self.cfg).unwrap();
+
         let first_branch_block = cond_stmt.first_block();
         let first_branch_node = self.add_empty_node_and_set_current();
 
@@ -126,8 +128,8 @@ impl CFGBuilder {
     fn process_if_stmt(&mut self, if_stmt: &If) -> Result<()> {
         let (cond_node, fbn) = self.prep_cond(if_stmt);
         let exit_node = self.add_empty_node();
-        self.ssa.seal_block(fbn, &self.cfg)?;
 
+        self.ssa.seal_block(fbn, &self.cfg)?;
         // condition to first branch handled in fn prep_cond
 
         // first branch to exit
@@ -145,7 +147,6 @@ impl CFGBuilder {
             self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
             self.ssa.seal_block(second_branch_node, &self.cfg)?;
         }
-        self.ssa.seal_block(cond_node, &self.cfg)?;
         self.current_node = exit_node;
         Ok(())
     }
@@ -157,7 +158,7 @@ impl CFGBuilder {
         //func
         self.cfg.add_edge(wbn, cond_node, None);
         self.ssa.seal_block(wbn, &self.cfg)?;
-        self.ssa.seal_block(cond_node, &self.cfg)
+        Ok(())
     }
 
     fn ret_0(&mut self) {
@@ -177,7 +178,6 @@ impl CFGBuilder {
 
     fn term_stmt(&mut self, stmt: StmtId) {
         if let Some(stmt) = self.stmt_pool.remove(stmt) {
-            println!("{stmt:?}");
             assert!(stmt.is_term());
             match stmt {
                 Stmt::If(ifstmt) => {
@@ -258,15 +258,7 @@ impl CFGBuilder {
     }
 
     pub fn build_func_cfg(&mut self, func: &Function) -> Result<()> {
-        let mut seal_exit = false;
         for stmt in &func.body.body {
-            if seal_exit {
-                self.ssa.seal_block(self.current_node, &self.cfg)?;
-                seal_exit = false;
-            }
-            if self.stmt_pool[*stmt].is_term() {
-                seal_exit = true;
-            };
             self.stmt(*stmt);
         }
         Ok(())
@@ -335,5 +327,6 @@ mod cfg_tests {
     #[test]
     fn test_build_cfg() {
         let cfg = build_cfg();
+        assert_eq!(cfg.cfg.node_count(), cfg.ssa.sealed_blocks.len());
     }
 }

@@ -204,7 +204,6 @@ impl<'a> SSABuilder {
 
     pub fn seal_block(&mut self, block: NodeIndex, cfg: &CFG) -> Result<()> {
         let mut to_process = Vec::new();
-        println!("seal: {block:?}");
         while let Some(&var) = self.incomplete_phis[block].iter().next() {
             to_process.push(var);
         }
@@ -213,7 +212,6 @@ impl<'a> SSABuilder {
             let dummy_phi = self.new_phi();
             self.add_phi_operands(var, dummy_phi, cfg)?;
         }
-
         self.borrow_sealed_blocks_mut_pub().insert(block);
         Ok(())
     }
@@ -331,18 +329,18 @@ impl<'a> SSABuilder {
 #[cfg(test)]
 mod ssa_tests {
 
-    use super::*;
-    use crate::CFGBuilder;
-    use crate::cfg_tests::{build_cfg, prep_parser};
-    use benlang_parser::Parser;
-    use benlang_parser::scanner::Scanner;
-    use petgraph::dot::{Config, Dot};
-    #[test]
-    fn test_ssa() {
-        let parser = prep_parser();
-        let cfg: CFGBuilder = build_cfg();
-        let block = cfg.cfg.node_indices().last().unwrap();
-
-        let mut ssa_builder = SSABuilder::new(parser.interner);
-    }
+//    use super::*;
+//    use crate::CFGBuilder;
+//    use crate::cfg_tests::{build_cfg, prep_parser};
+//    use benlang_parser::Parser;
+//    use benlang_parser::scanner::Scanner;
+//    use petgraph::dot::{Config, Dot};
+//    #[test]
+//    fn test_ssa() {
+//        let parser = prep_parser();
+//        let cfg: CFGBuilder = build_cfg();
+//        let block = cfg.cfg.node_indices().last().unwrap();
+//
+//        let mut ssa_builder = SSABuilder::new(parser.interner);
+//    }
 }
