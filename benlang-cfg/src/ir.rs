@@ -15,6 +15,19 @@ pub enum Ir {
     DeclareFunc(Function),
 }
 
+impl Ir {
+    pub fn get_expr(&self) -> Option<ExprId> {
+        let id = match self {
+            Ir::Expr(expr) => expr,
+            Ir::Return1(expr) => expr,
+            Ir::Print(expr) => expr,
+            Ir::Var(_, expr) => expr,
+            _ => return None,
+        };
+        Some(*id)
+    }
+}
+
 impl TryFrom<&Stmt> for Ir {
     type Error = ();
     fn try_from(stmt: &Stmt) -> Result<Self, ()> {

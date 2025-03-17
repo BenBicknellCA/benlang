@@ -24,7 +24,7 @@ impl Stmt {
     pub fn is_term(&self) -> bool {
         matches!(
             self,
-            Stmt::If(_) | Stmt::While(_) | Stmt::Return0 | Stmt::Return1(_) | Stmt::Block(_)
+            Stmt::If(_) | Stmt::While(_) | Stmt::Return0 | Stmt::Return1(_) // | Stmt::Block(_)
         )
     }
 }

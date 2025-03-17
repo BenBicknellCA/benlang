@@ -11,16 +11,15 @@ use benlang_parser::{
     expr_parser::ExprId,
     scanner::{Symbol, SymbolTable},
 };
-use petgraph::graph::{EdgeReference, Edges, NodeIndex};
+use petgraph::graph::{Edges, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Directed, Direction};
-use slotmap::{SecondaryMap, SlotMap, new_key_type};
+use slotmap::new_key_type;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
-use std::ops::Index;
 use thiserror::Error;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PhiOrExpr {
     Expr(ExprId),
     Phi(PhiId),
@@ -34,29 +33,15 @@ impl PhiOrExpr {
 
 new_key_type! {pub struct PhiId;}
 
-#[derive(Debug, Error)]
-pub enum SSAError {
-    #[error("Cannot write SSA variable {symbol:?} to block {node_index:?}")]
-    CannotWrite {
-        symbol: Symbol,
-        node_index: NodeIndex,
-    },
-    #[error("Cannot read SSA variable {symbol:?} from block {node_index:?}")]
-    CannotRead {
-        symbol: Symbol,
-        node_index: NodeIndex,
-    },
-}
-
 pub struct SSABuilder {
     symbol_table: SymbolTable,
-    incomplete_phis: IncompletePhis,
-    var_defs: VarDefs,
-    sealed_blocks: SealedBlocks,
-    phis: Phis,
-    phis_to_block: PhisToBlock,
-    phi_operands: PhiOperands,
-    phi_users: PhiUsers,
+    pub incomplete_phis: IncompletePhis,
+    pub var_defs: VarDefs,
+    pub sealed_blocks: SealedBlocks,
+    pub phis: Phis,
+    pub phis_to_block: PhisToBlock,
+    pub phi_operands: PhiOperands,
+    pub phi_users: PhiUsers,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -79,7 +64,6 @@ impl<'a> SSABuilder {
     // incomplete_phis: &mut IncompletePhis, var_defs: &mut VarDefs
 
     pub fn add_block(
-        &self,
         block: NodeIndex,
         incomplete_phis: &mut IncompletePhis,
         phi_operands: &mut PhiOperands,
@@ -93,7 +77,7 @@ impl<'a> SSABuilder {
         incomplete_phis.insert(block, HashSet::new());
         var_defs.insert(block, HashMap::new());
         if seal {
-            self.seal_block(
+            SSABuilder::seal_block(
                 block,
                 incomplete_phis,
                 phi_operands,
@@ -172,42 +156,47 @@ impl<'a> SSABuilder {
         }
     }
 
-    fn write_variable(
-        &self,
+    pub fn write_variable(
         var_defs: &mut VarDefs,
-        variable: &Symbol,
+        variable: Symbol,
         block: NodeIndex,
         value: PhiOrExpr,
     ) -> Result<()> {
         if let Some(map) = var_defs.get_mut(block) {
-            if let Some(old_val) = map.get_mut(variable) {
-                if let PhiOrExpr::Phi(id) = value {}
+            if let Some(old_val) = map.get_mut(&variable) {
                 *old_val = value;
                 return Ok(());
             }
         }
-        Err(SSAError::CannotWrite {
-            symbol: *variable,
-            node_index: block,
-        }
+        Err(anyhow!(
+            "count not write value {:?} to variable {:?} in block {:?} ",
+            value,
+            variable,
+            block
+        )
         .into())
     }
 
-    fn read_variable(
-        &self,
+    pub fn read_variable(
         incomplete_phis: &mut IncompletePhis,
-        variable: &Symbol,
-        block: &NodeIndex,
+        variable: Symbol,
+        block: NodeIndex,
         cfg: &CFG,
         phis: &mut Phis,
         phi_operands: &mut PhiOperands,
         var_defs: &mut VarDefs,
         phis_to_block: &mut PhisToBlock,
+        sealed_blocks: &mut SealedBlocks,
     ) -> Result<PhiOrExpr> {
-        if self.var_defs.contains_key(*block) {
-            return Ok(self.var_defs[*block][variable]);
-        };
-        self.read_variable_recursive(
+        if let Some(map) = var_defs.get(block) {
+            if let Some(phi_or_expr) = map.get(&variable) {
+                return Ok(*phi_or_expr);
+            }
+        }
+        //        if var_defs.contains_key(*block) {
+        //            return Ok(var_defs[*block][variable]);
+        //        };
+        SSABuilder::read_variable_recursive(
             incomplete_phis,
             variable,
             block,
@@ -216,18 +205,19 @@ impl<'a> SSABuilder {
             phi_operands,
             var_defs,
             phis_to_block,
+            sealed_blocks,
         )
     }
     //    fn get_preds(&self, block: BBId, cfg: &CFG) -> Edges<Option<bool>, Directed> {
-    fn get_preds_count(block: &NodeIndex, cfg: &CFG) -> usize {
+    fn get_preds_count(block: NodeIndex, cfg: &CFG) -> usize {
         SSABuilder::get_preds(block, cfg).count()
     }
-    fn get_preds(block: &NodeIndex, cfg: &'a CFG) -> Edges<'a, Option<bool>, Directed> {
-        cfg.edges_directed(*block, Direction::Incoming)
+    fn get_preds(block: NodeIndex, cfg: &'a CFG) -> Edges<'a, Option<bool>, Directed> {
+        cfg.edges_directed(block, Direction::Incoming)
     }
 
-    fn get_single_pred(&self, block: &NodeIndex, cfg: &CFG) -> NodeIndex {
-        cfg.neighbors_directed(*block, Direction::Incoming)
+    fn get_single_pred(block: NodeIndex, cfg: &CFG) -> NodeIndex {
+        cfg.neighbors_directed(block, Direction::Incoming)
             .next()
             .unwrap()
     }
@@ -237,14 +227,12 @@ impl<'a> SSABuilder {
     }
 
     fn add_new_phi_to_block(
-        &self,
-        phis: &mut Phis,
+        block: NodeIndex,
         phis_to_block: &mut PhisToBlock,
-        block: &NodeIndex,
+        phis: &mut Phis,
     ) -> PhiId {
-        let id = SSABuilder::new_phi(phis);
-        phis_to_block[id] = *block;
-
+        let id = phis.new_phi();
+        phis_to_block.insert(id, block);
         id
     }
 
@@ -253,7 +241,6 @@ impl<'a> SSABuilder {
     }
 
     fn seal_block(
-        &self,
         block: NodeIndex,
         incomplete_phis: &mut IncompletePhis,
         phi_operands: &mut PhiOperands,
@@ -263,25 +250,32 @@ impl<'a> SSABuilder {
         phis_to_block: &mut PhisToBlock,
         sealed_blocks: &mut SealedBlocks,
     ) -> Result<()> {
-        for variable in &self.incomplete_phis[&block] {
+        let mut to_process = Vec::new();
+        println!("incomplete_phis: {incomplete_phis:?}");
+        while let Some(&var) = incomplete_phis[block].iter().next() {
+            to_process.push(var);
+        }
+
+        for var in to_process {
             let dummy_phi = SSABuilder::new_phi(phis);
-            self.add_phi_operands(
+            SSABuilder::add_phi_operands(
                 incomplete_phis,
                 phi_operands,
-                *variable,
+                var,
                 dummy_phi,
                 cfg,
                 phis,
                 var_defs,
                 phis_to_block,
+                sealed_blocks,
             )?;
         }
+
         sealed_blocks.insert(block);
         Ok(())
     }
 
     fn add_phi_operands(
-        &self,
         incomplete_phis: &mut IncompletePhis,
         phi_operands: &mut PhiOperands,
         variable: Symbol,
@@ -290,19 +284,21 @@ impl<'a> SSABuilder {
         phis: &mut Phis,
         var_defs: &mut VarDefs,
         phis_to_block: &mut PhisToBlock,
+        sealed_blocks: &mut SealedBlocks,
     ) -> Result<()> {
-        let phi_block = &self.phis_to_block[phi_id];
+        let phi_block = phis_to_block[phi_id];
         for pred in SSABuilder::get_preds(phi_block, cfg) {
             let src = pred.source();
-            let val = self.read_variable(
+            let val = SSABuilder::read_variable(
                 incomplete_phis,
-                &variable,
-                &pred.source(),
+                variable,
+                pred.source(),
                 cfg,
                 phis,
                 phi_operands,
                 var_defs,
                 phis_to_block,
+                sealed_blocks,
             );
             phi_operands[phi_id].push(val?);
         }
@@ -351,59 +347,96 @@ impl<'a> SSABuilder {
         todo!()
     }
 
-    fn read_variable_recursive(
-        &self,
+    pub fn process_all_vars_in_expr(
+        expr_pool: &ExprPool,
+        expr_id: ExprId,
+        vec: &mut Vec<Symbol>,
         incomplete_phis: &mut IncompletePhis,
-        variable: &Symbol,
-        block: &NodeIndex,
+        block: NodeIndex,
         cfg: &CFG,
         phis: &mut Phis,
         phi_operands: &mut PhiOperands,
         var_defs: &mut VarDefs,
         phis_to_block: &mut PhisToBlock,
-    ) -> Result<PhiOrExpr> {
-        let mut val: Option<PhiOrExpr> = None;
-        if !self.sealed_blocks.contains(block) {
-            let phi_id = self.add_new_phi_to_block(phis, phis_to_block, block);
-            val = Some(PhiOrExpr::Phi(phi_id));
-            incomplete_phis.get_mut(block).unwrap().insert(*variable);
-        } else if SSABuilder::get_preds_count(block, cfg) == 1 {
-            let pred = self.get_single_pred(block, cfg);
-            val = Some(self.read_variable(
+        sealed_blocks: &mut SealedBlocks,
+    ) {
+        crate::CFGBuilder::get_all_vars_used_in_expr(expr_pool, expr_id, vec);
+        for var in vec {
+            let _ = SSABuilder::read_variable(
                 incomplete_phis,
-                variable,
-                &pred,
+                *var,
+                block,
                 cfg,
                 phis,
                 phi_operands,
                 var_defs,
                 phis_to_block,
+                sealed_blocks,
+            );
+        }
+    }
+
+    fn read_variable_recursive(
+        incomplete_phis: &mut IncompletePhis,
+        variable: Symbol,
+        block: NodeIndex,
+        cfg: &CFG,
+        phis: &mut Phis,
+        phi_operands: &mut PhiOperands,
+        var_defs: &mut VarDefs,
+        phis_to_block: &mut PhisToBlock,
+        sealed_blocks: &mut SealedBlocks,
+    ) -> Result<PhiOrExpr> {
+        let mut val: Option<PhiOrExpr> = None;
+        if !sealed_blocks.contains(&block) {
+            let phi_id = SSABuilder::add_new_phi_to_block(block, phis_to_block, phis);
+            val = Some(PhiOrExpr::Phi(phi_id));
+            if let Some(inc_phi) = incomplete_phis.0.get_mut(&block) {
+                inc_phi.insert(variable);
+            } else {
+                incomplete_phis.0.insert(block, HashSet::new());
+                incomplete_phis.insert_at_block(block, variable);
+            }
+        } else if SSABuilder::get_preds_count(block, cfg) == 1 {
+            let pred = SSABuilder::get_single_pred(block, cfg);
+            val = Some(SSABuilder::read_variable(
+                incomplete_phis,
+                variable,
+                pred,
+                cfg,
+                phis,
+                phi_operands,
+                var_defs,
+                phis_to_block,
+                sealed_blocks,
             )?)
         } else {
-            let phi_id = self.add_new_phi_to_block(phis, phis_to_block, block);
+            let phi_id = SSABuilder::add_new_phi_to_block(block, phis_to_block, phis);
             val = Some(PhiOrExpr::Phi(phi_id));
-            self.write_variable(var_defs, variable, *block, val.unwrap())?;
-            self.add_phi_operands(
+            SSABuilder::write_variable(var_defs, variable, block, val.unwrap())?;
+            SSABuilder::add_phi_operands(
                 incomplete_phis,
                 phi_operands,
-                *variable,
+                variable,
                 phi_id,
                 cfg,
                 phis,
                 var_defs,
                 phis_to_block,
+                sealed_blocks,
             )?;
         }
         let val = val.unwrap();
-        self.write_variable(var_defs, variable, *block, val)?;
+        SSABuilder::write_variable(var_defs, variable, block, val)?;
         Ok(val)
     }
 }
 
 #[cfg(test)]
-mod cfg_tests {
+mod ssa_tests {
 
     use super::*;
+    use crate::CFGBuilder;
     use crate::cfg_tests::{build_cfg, prep_parser};
     use benlang_parser::Parser;
     use benlang_parser::scanner::Scanner;
@@ -411,10 +444,9 @@ mod cfg_tests {
     #[test]
     fn test_ssa() {
         let parser = prep_parser();
-        let cfg = build_cfg();
+        let cfg: CFGBuilder = build_cfg();
+        let block = cfg.cfg.node_indices().last().unwrap();
 
-        let ssa_builder = SSABuilder::new(parser.interner);
-
-//        let var_1_sym = ssa_builder.symbol_table[]
+        let mut ssa_builder = SSABuilder::new(parser.interner);
     }
 }

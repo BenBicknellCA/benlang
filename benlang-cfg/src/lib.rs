@@ -5,6 +5,7 @@ mod ssa;
 
 use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
+use crate::ssa::SSABuilder;
 use benlang_parser::expr_parser::ExprId;
 use benlang_parser::scanner::{Symbol, SymbolTable};
 use benlang_parser::stmt_parser::StmtId;
@@ -14,8 +15,6 @@ use benlang_parser::{
     object::Function,
     stmt::{Block, Conditional, If, Stmt, While},
 };
-
-use crate::ssa::SSABuilder;
 
 use petgraph::{
     Direction, Graph,
@@ -65,6 +64,17 @@ impl CFGBuilder {
     fn add_empty_node(&mut self) -> NodeIndex {
         let node_index = self.cfg.add_node(BasicBlock::default());
         self.cfg.node_weight_mut(node_index).unwrap().node_index = node_index;
+        let _ = SSABuilder::add_block(
+            node_index,
+            &mut self.ssa.incomplete_phis,
+            &mut self.ssa.phi_operands,
+            &self.cfg,
+            &mut self.ssa.phis,
+            &mut self.ssa.var_defs,
+            &mut self.ssa.phis_to_block,
+            false,
+            &mut self.ssa.sealed_blocks,
+        );
         node_index
     }
 
@@ -169,6 +179,8 @@ impl CFGBuilder {
 
     fn term_stmt(&mut self, stmt: StmtId) {
         if let Some(stmt) = self.stmt_pool.remove(stmt) {
+            println!("{stmt:?}");
+            assert!(stmt.is_term());
             match stmt {
                 Stmt::If(ifstmt) => {
                     self.process_if_stmt(&ifstmt);
@@ -183,18 +195,76 @@ impl CFGBuilder {
                 Stmt::Return0 => self.ret_0(),
                 Stmt::Return1(val) => self.ret_1(val),
                 Stmt::Function(_) => todo!(),
-                _ => unreachable!("not a term"),
+                _ => unreachable!("not a term: {stmt:?}"),
             };
+        }
+    }
+
+    fn get_all_vars_used_in_expr(expr_pool: &ExprPool, expr_id: ExprId, vec: &mut Vec<Symbol>) {
+        let expr = &expr_pool[expr_id];
+        match expr {
+            Expr::Binary(bin) => {
+                let lhs = bin.0;
+                let rhs = bin.2;
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, lhs, vec);
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, rhs, vec);
+            }
+            Expr::Unary(unary) => {
+                let opnd = unary.1;
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, opnd, vec);
+            }
+            Expr::Stmt(stmt) => {
+                todo!()
+            }
+            Expr::Call(call) => {
+                todo!()
+            }
+            Expr::Assign(assign) => {
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.1, vec);
+            }
+            Expr::Value(val) => {}
+            Expr::Identifier(iden) => {
+                todo!()
+            }
+            Expr::Grouping(group) => {
+                todo!()
+            }
+            Expr::Variable(var) => {
+                vec.push(var.0);
+            }
         }
     }
 
     fn stmt(&mut self, stmt_id: StmtId) {
         let stmt = &self.stmt_pool[stmt_id];
+
         // stmt is not a terminator
         if let Ok(ir_stmt) = Ir::try_from(stmt) {
-            return self.add_ir_stmt_to_current_node(ir_stmt);
-            //        self.cfg.get_(self.current_node).statements.push(ir_stmt);
-        };
+            let mut vec = Vec::new();
+            if let Ir::Var(name, val) = ir_stmt {
+                let _ = SSABuilder::write_variable(
+                    &mut self.ssa.var_defs,
+                    name,
+                    self.current_node,
+                    ssa::PhiOrExpr::Expr(val),
+                );
+            }
+            SSABuilder::process_all_vars_in_expr(
+                &self.expr_pool,
+                ir_stmt.get_expr().unwrap(),
+                &mut vec,
+                &mut self.ssa.incomplete_phis,
+                self.current_node,
+                &self.cfg,
+                &mut self.ssa.phis,
+                &mut self.ssa.phi_operands,
+                &mut self.ssa.var_defs,
+                &mut self.ssa.phis_to_block,
+                &mut self.ssa.sealed_blocks,
+            );
+            return;
+        }
+        assert!(self.stmt_pool[stmt_id].is_term());
         self.term_stmt(stmt_id);
     }
 
@@ -224,11 +294,12 @@ mod cfg_tests {
     pub fn prep_parser() -> Parser {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {
-                    if (true == true) {
                     var test_var = 1 + 1;
-                    test_var - 1;
-                    } else
-                    {
+                    if (true == true) {
+                        test_var = 3;
+                    } else {
+                        test_var = 4;
+                    }
                     var extra_block = 123123;
                     while (true)
                     {
@@ -237,8 +308,7 @@ mod cfg_tests {
                         1 - 1;
                     }
                     var afterwhile = 321321;
-                }
-                1 / 2 / 3;
+                    1 / 2 / 3;
             }";
         let mut scanner = Scanner::new(SOURCE);
         scanner.scan();

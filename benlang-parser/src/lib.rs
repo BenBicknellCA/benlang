@@ -317,6 +317,7 @@ mod parser_tests {
                     if (true == true) {
                     var test_var = 1 + 1;
                     test_var + 1;
+                    test_var;
                 } else {
                     {
                     while (true) {
@@ -329,6 +330,7 @@ mod parser_tests {
             }";
 
         let mut parser = prep_parser(SOURCE);
+        parser.build_ast().unwrap();
         assert!(parser.build_ast().is_ok());
     }
 

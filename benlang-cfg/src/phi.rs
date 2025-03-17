@@ -8,7 +8,38 @@ use std::ops::Index;
 #[derive(Debug, Default)]
 pub struct Phi;
 pub type PhiOperands = SecondaryMap<PhiId, Vec<PhiOrExpr>>;
-pub type IncompletePhis = HashMap<NodeIndex, HashSet<Symbol>>;
+
+#[derive(Debug)]
+pub struct IncompletePhis(pub HashMap<NodeIndex, HashSet<Symbol>>);
+impl IncompletePhis {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn get(&self, node_index: NodeIndex) -> &HashSet<Symbol> {
+        self.0.get(&node_index).unwrap()
+    }
+    pub fn insert(&mut self, node_index: NodeIndex, set: HashSet<Symbol>) {
+        self.0.insert(node_index, set);
+    }
+
+    pub fn insert_at_block(&mut self, node_index: NodeIndex, variable: Symbol) {
+        self.0.get_mut(&node_index).unwrap().insert(variable);
+    }
+}
+
+impl std::ops::IndexMut<NodeIndex> for IncompletePhis {
+    fn index_mut(&mut self, node_index: NodeIndex) -> &mut HashSet<Symbol> {
+        self.0.get_mut(&node_index).unwrap()
+    }
+}
+
+impl Index<NodeIndex> for IncompletePhis {
+    type Output = HashSet<Symbol>;
+    fn index(&self, node_index: NodeIndex) -> &Self::Output {
+        &self.0[&node_index]
+    }
+}
 
 pub type SealedBlocks = HashSet<NodeIndex>;
 
@@ -19,6 +50,9 @@ impl VarDefs {
     }
     pub fn insert(&mut self, block: NodeIndex, map: HashMap<Symbol, PhiOrExpr>) {
         self.0.insert(block, map);
+    }
+    pub fn get(&self, block: NodeIndex) -> Option<&HashMap<Symbol, PhiOrExpr>> {
+        self.0.get(&block)
     }
 
     pub fn get_mut(&mut self, block: NodeIndex) -> Option<&mut HashMap<Symbol, PhiOrExpr>> {
@@ -73,6 +107,9 @@ pub struct PhisToBlock(SecondaryMap<PhiId, NodeIndex>);
 impl PhisToBlock {
     pub fn new() -> Self {
         PhisToBlock(SecondaryMap::new())
+    }
+    pub fn insert(&mut self, phi: PhiId, node_index: NodeIndex) {
+        self.0.insert(phi, node_index);
     }
 }
 
