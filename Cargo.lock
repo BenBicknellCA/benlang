@@ -20,8 +20,11 @@ dependencies = [
 name = "benlang-cfg"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "benlang-parser",
  "petgraph",
+ "slotmap",
+ "thiserror",
 ]
 
 [[package]]

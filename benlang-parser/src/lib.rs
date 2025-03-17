@@ -147,10 +147,10 @@ pub type ExprPool = SlotMap<ExprId, Expr>;
 #[derive(Debug)]
 pub struct Parser {
     iter: ParserIter,
-    ast: AST,
+    pub ast: AST,
     pub stmt_pool: StmtPool,
     pub expr_pool: ExprPool,
-    interner: SymbolTable,
+    pub interner: SymbolTable,
 }
 
 impl ParserIter {
