@@ -3,20 +3,17 @@
 // Construction. CC 2013. Lecture Notes in Computer Science, vol 7791. Springer, Berlin, Heidelberg.
 // https://doi.org/10.1007/978-3-642-37051-9_6
 
+use crate::CFG;
 use crate::phi::*;
-use crate::{CFG, CFGBuilder};
 use anyhow::{Result, anyhow};
-use benlang_parser::expr::Expr;
 use benlang_parser::{
     ExprPool,
     expr_parser::ExprId,
     scanner::{Symbol, SymbolTable},
 };
-use petgraph::adj::Neighbors;
-use petgraph::data::DataMap;
-use petgraph::graph::{Edges, NodeIndex};
-use petgraph::visit::{EdgeRef, IntoNeighborsDirected, NodeRef};
-use petgraph::{Directed, Direction, Outgoing};
+use petgraph::Direction;
+use petgraph::graph::NodeIndex;
+use petgraph::visit::IntoNeighborsDirected;
 use slotmap::new_key_type;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
@@ -122,7 +119,7 @@ impl SSABuilder {
 
     pub fn reroute_all_uses(&mut self, replace: PhiId, replace_with: PhiOrExpr) {
         // switch all uses of `replace` to `replace_with`
-        if let PhiOrExpr::Phi(replace_with) = replace_with{
+        if let PhiOrExpr::Phi(replace_with) = replace_with {
             let mut users = std::mem::take(self.borrow_phi_users_mut_pub().get_mut(replace));
             self.borrow_phi_users_mut_pub()[replace_with].append(&mut users);
             self.phis_to_block[replace] = self.phis_to_block[replace_with];

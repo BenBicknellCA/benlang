@@ -6,7 +6,7 @@ mod ssa;
 use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
 use crate::ssa::SSABuilder;
-use anyhow::{Error, Result};
+use anyhow::Result;
 use benlang_parser::expr_parser::ExprId;
 use benlang_parser::scanner::{Symbol, SymbolTable};
 use benlang_parser::stmt_parser::StmtId;
@@ -17,11 +17,7 @@ use benlang_parser::{
     stmt::{Block, Conditional, If, Stmt, While},
 };
 
-use benlang_parser::object::FuncId;
-use petgraph::{
-    Direction, Graph,
-    graph::{Edges, NodeIndex},
-};
+use petgraph::{Graph, graph::NodeIndex};
 
 pub type CFG = Graph<BasicBlock, Option<bool>>;
 
@@ -218,7 +214,7 @@ impl CFGBuilder {
         //        self.process_split_vec(&block.get_body_split_at_leaders());
     }
 
-    fn term_stmt(&mut self, stmt: StmtId)-> Result<()> {
+    fn term_stmt(&mut self, stmt: StmtId) -> Result<()> {
         assert!(self.stmt_pool[stmt].is_term());
         if let Some(stmt) = self.stmt_pool.remove(stmt) {
             match stmt {
@@ -262,7 +258,7 @@ impl CFGBuilder {
                 CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.1, vec);
             }
             Expr::Value(_) => {
-                todo!()
+                // do nothing
             }
             Expr::Identifier(_) => {
                 todo!()
@@ -301,14 +297,14 @@ impl CFGBuilder {
                         .unwrap();
                 }
                 Ir::Expr(expr_id) => {
-                    if let Expr::Assign(assgn) =  &self.expr_pool[expr_id] {
-                            self.ssa
-                                .write_variable(
-                                    assgn.0,
-                                    self.current_node,
-                                    ssa::PhiOrExpr::Expr(assgn.1),
-                                )
-                                .unwrap();
+                    if let Expr::Assign(assgn) = &self.expr_pool[expr_id] {
+                        self.ssa
+                            .write_variable(
+                                assgn.0,
+                                self.current_node,
+                                ssa::PhiOrExpr::Expr(assgn.1),
+                            )
+                            .unwrap();
                     }
                 }
                 _ => {}
