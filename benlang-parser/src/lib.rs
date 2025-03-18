@@ -223,7 +223,7 @@ impl Parser {
             interner,
         };
         // 'prime' parser
-        let _ = parser.advance();
+        parser.advance().unwrap();
         parser
     }
 
@@ -290,9 +290,6 @@ impl Parser {
             let key = self.declaration()?;
             self.ast.push(key);
         }
-        //        for func in self.stmt_pool.funcs.0.values() {
-        //            self.resolver.unroll_block(func.body);
-        //        }
         Ok(&self.ast)
     }
 }
@@ -303,11 +300,12 @@ mod parser_tests {
     use super::*;
     use crate::scanner::Scanner;
 
-    fn prep_parser(source: &'static str) -> Parser {
+    fn prep_parser_tests(source: &'static str) -> Parser {
         let mut scanner = Scanner::new(source);
         scanner.scan();
 
-        Parser::new(scanner.tokens, scanner.interner)
+        let mut parser = Parser::new(scanner.tokens, scanner.interner);
+        parser
     }
 
     #[test]
@@ -329,14 +327,13 @@ mod parser_tests {
                 }
             }";
 
-        let mut parser = prep_parser(SOURCE);
-        parser.build_ast().unwrap();
+        let mut parser = prep_parser_tests(SOURCE);
         assert!(parser.build_ast().is_ok());
     }
 
     fn parse_block() {
         static SOURCE: &str = "{}";
-        let mut parser = prep_parser(SOURCE);
+        let mut parser = prep_parser_tests(SOURCE);
         // TODO
     }
 }
