@@ -24,7 +24,10 @@ impl IncompletePhis {
     }
 
     pub fn insert_at_block(&mut self, node_index: NodeIndex, variable: Symbol, phi_id: PhiId) {
-        self.0.get_mut(&node_index).unwrap().insert(variable, phi_id);
+        self.0
+            .get_mut(&node_index)
+            .unwrap()
+            .insert(variable, phi_id);
     }
 }
 

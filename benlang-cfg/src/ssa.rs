@@ -120,12 +120,12 @@ impl<'a> SSABuilder {
         user_vec.retain(|&User(id, _)| id != user.0);
     }
 
-    pub fn reroute_all_uses(&mut self, from: PhiId, to: PhiOrExpr) {
-        if let PhiOrExpr::Phi(to) = to {
-            let mut users = std::mem::take(self.borrow_phi_users_mut_pub().get_mut(from));
-            self.borrow_phi_users_mut_pub()[to].append(&mut users);
-            let to_block = self.phis_to_block[from];
-            self.phis_to_block[from] = to_block;
+    pub fn reroute_all_uses(&mut self, replace: PhiId, replace_with: PhiOrExpr) {
+        // switch all uses of `replace` to `replace_with`
+        if let PhiOrExpr::Phi(replace_with) = replace_with{
+            let mut users = std::mem::take(self.borrow_phi_users_mut_pub().get_mut(replace));
+            self.borrow_phi_users_mut_pub()[replace_with].append(&mut users);
+            self.phis_to_block[replace] = self.phis_to_block[replace_with];
         }
     }
 
@@ -177,7 +177,6 @@ impl<'a> SSABuilder {
             .unwrap();
         pred
     }
-
 
     fn add_new_phi_to_block(&mut self, block: NodeIndex) -> PhiId {
         let id = self.borrow_phis_mut_pub().insert(Phi);

@@ -275,7 +275,6 @@ impl CFGBuilder {
         };
     }
 
-
     fn stmts(&mut self, stmts: &[StmtId]) {
         let mut seal_prev = false;
         for stmt in stmts {
@@ -292,7 +291,7 @@ impl CFGBuilder {
 
         // stmt is not a terminator
         if let Ok(ir_stmt) = Ir::try_from(stmt) {
-                       let mut vec: Vec<Symbol> = Vec::new();
+            let mut vec: Vec<Symbol> = Vec::new();
             match ir_stmt {
                 Ir::Var(name, val) => {
                     self.ssa
@@ -314,12 +313,7 @@ impl CFGBuilder {
                         _ => {}
                     }
                 }
-                _ => {
-
-
-                }
-
-
+                _ => {}
             }
             self.ssa.process_all_vars_in_expr(
                 &self.expr_pool,
