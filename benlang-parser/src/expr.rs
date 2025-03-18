@@ -99,7 +99,7 @@ pub struct Binary(pub ExprId, pub BinaryOp, pub ExprId);
 pub struct Unary(pub UnaryOp, pub ExprId);
 
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
-pub struct Assign(pub Token, pub ExprId);
+pub struct Assign(pub Symbol, pub ExprId);
 
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Identifier(pub Symbol);

@@ -96,22 +96,25 @@ impl Block {
         }
     }
 
-    pub fn get_body_split_at_leaders(&self) -> Vec<&[StmtId]> {
-        let len: usize = self.leaders.len();
-
-        if self.leaders.is_empty() {
-            return vec![&self.body];
-        }
-
-        let mut splits: Vec<&[StmtId]> = Vec::with_capacity(len * 2);
-
-        for idx in &self.leaders {
-            let (first, second): (&[StmtId], &[StmtId]) = self.body.split_at(*idx);
-            splits.push(first);
-            splits.push(second);
-        }
-        splits
-    }
+    //    pub fn get_body_split_at_leaders(&self) -> Vec<&[StmtId]> {
+    //        let len: usize = self.leaders.len();
+    //        println!("SPLITTING: {self:?}");
+    //
+    //        if self.leaders.is_empty() {
+    //            return vec![&self.body] ;
+    //        }
+    //
+    //        let mut splits: Vec<&[StmtId]> = Vec::with_capacity(len * 2);
+    //
+    //
+    //
+    //        for idx in &self.leaders {
+    //            let (first, second): (&[StmtId], &[StmtId]) = self.body.split_at(*idx);
+    //            splits.push(first);
+    //            splits.push(second);
+    //        }
+    //        splits
+    //    }
 
     pub fn add_stmt_id(&mut self, stmt_id: StmtId) {
         self.body.push(stmt_id);
