@@ -9,11 +9,11 @@ use std::ops::Index;
 pub struct Phi;
 pub type PhiOperands = SecondaryMap<PhiId, Vec<PhiOrExpr>>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct IncompletePhis(pub HashMap<NodeIndex, HashMap<Symbol, PhiId>>);
 impl IncompletePhis {
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self::default()
     }
 
     pub fn get(&self, node_index: NodeIndex) -> &HashMap<Symbol, PhiId> {
@@ -45,11 +45,11 @@ impl Index<NodeIndex> for IncompletePhis {
 }
 
 pub type SealedBlocks = HashSet<NodeIndex>;
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VarDefs(HashMap<NodeIndex, HashMap<Symbol, PhiOrExpr>>);
 impl VarDefs {
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self::default()
     }
     pub fn insert(&mut self, block: NodeIndex, map: HashMap<Symbol, PhiOrExpr>) {
         self.0.insert(block, map);
@@ -66,10 +66,11 @@ impl VarDefs {
         self.0.contains_key(&block)
     }
 }
+#[derive(Default)]
 pub struct PhiUsers(pub SecondaryMap<PhiId, Vec<User>>);
 impl PhiUsers {
     pub fn new() -> Self {
-        PhiUsers(SecondaryMap::new())
+        Self::default()
     }
 
     pub fn insert(&mut self, phi_node: PhiId, user: User) {
@@ -88,10 +89,12 @@ impl PhiUsers {
         self.0[phi_id].iter_mut()
     }
 }
+
+#[derive(Default)]
 pub struct Phis(pub SlotMap<PhiId, Phi>);
 impl Phis {
     pub fn new() -> Self {
-        Phis(SlotMap::with_key())
+        Self::default()
     }
 
     pub fn insert(&mut self, phi: Phi) -> PhiId {
@@ -106,10 +109,12 @@ impl Phis {
         self.0.remove(phi_id)
     }
 }
+
+#[derive(Default)]
 pub struct PhisToBlock(SecondaryMap<PhiId, NodeIndex>);
 impl PhisToBlock {
     pub fn new() -> Self {
-        PhisToBlock(SecondaryMap::new())
+        Self::default()
     }
     pub fn insert(&mut self, phi: PhiId, node_index: NodeIndex) {
         self.0.insert(phi, node_index);

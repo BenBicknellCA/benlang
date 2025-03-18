@@ -49,7 +49,7 @@ pub struct SSABuilder {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct User(NodeIndex, Symbol);
 
-impl<'a> SSABuilder {
+impl SSABuilder {
     pub fn new(symbol_table: SymbolTable, inital_node: NodeIndex, cfg: &CFG) -> Self {
         let mut ssa = Self {
             symbol_table,
@@ -239,9 +239,7 @@ impl<'a> SSABuilder {
             self.try_remove_trivial_phi(use_phi)?;
         }
 
-        return Ok(same.unwrap());
-
-        todo!()
+        Ok(same.unwrap())
     }
 
     pub fn process_all_vars_in_expr(

@@ -116,7 +116,7 @@ impl CFGBuilder {
     //            }
     //        }
     //    }
-    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> (NodeIndex, NodeIndex) {
+    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> Result<(NodeIndex, NodeIndex)> {
         let cond: ExprId = cond_stmt.cond();
         let cond_ir = self.expr_to_ir(cond);
         let cond_idx = self.current_node;
@@ -138,14 +138,14 @@ impl CFGBuilder {
 
         self.cfg.add_edge(cond_idx, first_branch_node, Some(true));
         if !T::is_while() {
-            self.stmts(&first_branch_block.body);
+            self.stmts(&first_branch_block.body)?;
         }
 
-        (cond_idx, first_branch_node)
+        Ok((cond_idx, first_branch_node))
     }
 
     fn process_if_stmt(&mut self, if_stmt: &If) -> Result<()> {
-        let (cond_node, fbn) = self.prep_cond(if_stmt);
+        let (cond_node, fbn) = self.prep_cond(if_stmt)?;
         let exit_node = self.add_empty_node();
 
         self.ssa.seal_block(fbn, &self.cfg)?;
@@ -162,7 +162,7 @@ impl CFGBuilder {
             // second branch to exit
             self.cfg.add_edge(second_branch_node, exit_node, None);
 
-            self.stmts(&second_branch_block.body);
+            self.stmts(&second_branch_block.body)?;
 
             //            self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
             self.ssa.seal_block(second_branch_node, &self.cfg)?;
@@ -180,7 +180,7 @@ impl CFGBuilder {
     fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
         // condition node and while body node
         let while_body = while_stmt.first_block();
-        let (cond_node, wbn) = self.prep_cond(while_stmt);
+        let (cond_node, wbn) = self.prep_cond(while_stmt)?;
         //while body back to condition, body back to condition is done in first edge created in
         //func
         self.cfg.add_edge(wbn, cond_node, None);
@@ -190,7 +190,7 @@ impl CFGBuilder {
         self.cfg.add_edge(cond_node, exit_node, Some(false));
 
         self.current_node = wbn;
-        self.stmts(&while_body.body);
+        self.stmts(&while_body.body)?;
 
         self.current_node = exit_node;
         //        println!("EXIT: {exit:?}");
@@ -210,27 +210,27 @@ impl CFGBuilder {
         self.set_current_node_term(Ir::Return1(val));
     }
 
-    fn block_stmt(&mut self, block: &Block) {
+    fn block_stmt(&mut self, block: &Block) -> Result<()> {
         let prev = self.current_node;
         let block_stmt_node = self.add_empty_node_and_set_current();
         self.cfg.add_edge(prev, block_stmt_node, None);
-        self.stmts(&block.body);
+        self.stmts(&block.body)
         //        self.process_split_vec(&block.get_body_split_at_leaders());
     }
 
-    fn term_stmt(&mut self, stmt: StmtId) {
+    fn term_stmt(&mut self, stmt: StmtId)-> Result<()> {
         assert!(self.stmt_pool[stmt].is_term());
         if let Some(stmt) = self.stmt_pool.remove(stmt) {
             match stmt {
                 Stmt::If(ifstmt) => {
-                    self.process_if_stmt(&ifstmt);
+                    self.process_if_stmt(&ifstmt)?;
                 }
                 Stmt::While(whilestmt) => {
-                    self.process_while_stmt(&whilestmt);
+                    self.process_while_stmt(&whilestmt)?;
                 }
                 // block statements, different than If and While bodies
                 Stmt::Block(blck) => {
-                    self.block_stmt(&blck);
+                    self.block_stmt(&blck)?;
                 }
                 Stmt::Return0 => self.ret_0(),
                 Stmt::Return1(val) => self.ret_1(val),
@@ -238,9 +238,10 @@ impl CFGBuilder {
                 _ => unreachable!("not a term: {stmt:?}"),
             };
         }
+        Ok(())
     }
 
-    fn get_all_vars_used_in_expr<'a>(expr_pool: &ExprPool, expr_id: ExprId, vec: &mut Vec<Symbol>) {
+    fn get_all_vars_used_in_expr(expr_pool: &ExprPool, expr_id: ExprId, vec: &mut Vec<Symbol>) {
         let expr = &expr_pool[expr_id];
         match expr {
             Expr::Binary(bin) => {
@@ -251,22 +252,22 @@ impl CFGBuilder {
                 let opnd = unary.1;
                 CFGBuilder::get_all_vars_used_in_expr(expr_pool, opnd, vec);
             }
-            Expr::Stmt(stmt) => {
+            Expr::Stmt(_) => {
                 todo!()
             }
-            Expr::Call(call) => {
+            Expr::Call(_) => {
                 todo!()
             }
             Expr::Assign(assign) => {
                 CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.1, vec);
             }
-            Expr::Value(val) => {
-                // TODO
-            }
-            Expr::Identifier(iden) => {
+            Expr::Value(_) => {
                 todo!()
             }
-            Expr::Grouping(group) => {
+            Expr::Identifier(_) => {
+                todo!()
+            }
+            Expr::Grouping(_) => {
                 todo!()
             }
             Expr::Variable(var) => {
@@ -275,18 +276,19 @@ impl CFGBuilder {
         };
     }
 
-    fn stmts(&mut self, stmts: &[StmtId]) {
+    fn stmts(&mut self, stmts: &[StmtId]) -> Result<()> {
         let mut seal_prev = false;
         for stmt in stmts {
             if seal_prev {
                 self.ssa.seal_block(self.current_node, &self.cfg).unwrap();
             }
 
-            seal_prev = self.stmt(*stmt);
+            seal_prev = self.stmt(*stmt)?;
         }
+        Ok(())
     }
 
-    fn stmt(&mut self, stmt_id: StmtId) -> bool {
+    fn stmt(&mut self, stmt_id: StmtId) -> Result<bool> {
         let stmt = &self.stmt_pool[stmt_id];
 
         // stmt is not a terminator
@@ -299,9 +301,7 @@ impl CFGBuilder {
                         .unwrap();
                 }
                 Ir::Expr(expr_id) => {
-                    let expr = &self.expr_pool[expr_id];
-                    match expr {
-                        Expr::Assign(assgn) => {
+                    if let Expr::Assign(assgn) =  &self.expr_pool[expr_id] {
                             self.ssa
                                 .write_variable(
                                     assgn.0,
@@ -309,8 +309,6 @@ impl CFGBuilder {
                                     ssa::PhiOrExpr::Expr(assgn.1),
                                 )
                                 .unwrap();
-                        }
-                        _ => {}
                     }
                 }
                 _ => {}
@@ -323,16 +321,15 @@ impl CFGBuilder {
                 &self.cfg,
             );
             self.add_ir_stmt_to_current_node(ir_stmt);
-            return false;
+            return Ok(false);
         }
         assert!(self.stmt_pool[stmt_id].is_term());
-        self.term_stmt(stmt_id);
-        return true;
+        self.term_stmt(stmt_id)?;
+        Ok(true)
     }
 
     pub fn build_func_cfg(&mut self, func: &Function) -> Result<()> {
-        self.stmts(&func.body.body);
-        Ok(())
+        self.stmts(&func.body.body)
     }
 }
 
