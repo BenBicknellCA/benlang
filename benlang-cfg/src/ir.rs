@@ -1,12 +1,11 @@
+use benlang_parser::expr::Expr;
 use benlang_parser::expr_parser::ExprId;
 use benlang_parser::object::Function;
 use benlang_parser::scanner::Symbol;
 use benlang_parser::stmt::Stmt;
-use petgraph::stable_graph::NodeIndex;
 
 #[derive(Debug)]
 pub enum Ir {
-    Jump(NodeIndex),
     Expr(ExprId),
     Return0,
     Return1(ExprId),
@@ -16,6 +15,18 @@ pub enum Ir {
 }
 
 impl Ir {
+    pub fn get_name_val(stmt: &Stmt, expr_pool: &crate::ExprPool) -> Option<(Symbol, ExprId)> {
+        match stmt {
+            Stmt::Var(name, val) => Some((*name, *val)),
+            Stmt::Expr(expr) => {
+                if let Expr::Assign(assgn) = &expr_pool[*expr] {
+                    return Some((assgn.0, assgn.1));
+                };
+                None
+            }
+            _ => None,
+        }
+    }
     pub fn get_expr(&self) -> Option<ExprId> {
         let id = match self {
             Ir::Expr(expr) => expr,

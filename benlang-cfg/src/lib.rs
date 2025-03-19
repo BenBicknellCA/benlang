@@ -82,12 +82,6 @@ impl CFGBuilder {
         }
     }
 
-    fn set_current_node_term(&mut self, ir_stmt: Ir) {
-        if let Some(current_node) = self.cfg.node_weight_mut(self.current_node) {
-            current_node.set_term(ir_stmt);
-        }
-    }
-
     fn get_cond_id<T: Conditional>(&self, cond: T) -> ExprId {
         cond.cond()
     }
@@ -105,14 +99,10 @@ impl CFGBuilder {
         self.current_node
     }
 
-    //    fn process_split_vec(&mut self, vec_vec: &[&[StmtId]]) {
-    //        for vec in vec_vec {
-    //            for stmt in vec.iter() {
-    //                self.stmt(*stmt);
-    //            }
-    //        }
-    //    }
-    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> Result<(NodeIndex, NodeIndex, NodeIndex,)> {
+    fn prep_cond<T: Conditional>(
+        &mut self,
+        cond_stmt: &T,
+    ) -> Result<(NodeIndex, NodeIndex, NodeIndex)> {
         let cond: ExprId = cond_stmt.cond();
         let cond_ir = self.expr_to_ir(cond);
         let cond_idx = self.current_node;
@@ -126,7 +116,8 @@ impl CFGBuilder {
             self.ssa.read_variable(var, cond_idx, &self.cfg)?;
         }
 
-        self.set_current_node_term(cond_ir);
+        self.cfg[cond_idx].statements.push(cond_ir);
+
         if !T::is_while() {
             self.ssa.seal_block(cond_idx, &self.cfg)?;
         }
@@ -155,68 +146,53 @@ impl CFGBuilder {
             let second_branch_node = self.add_empty_node_and_set_current();
 
             // condition to second branch
-            self.cfg.add_edge(cond_node, second_branch_node, Some(false));
+            self.cfg
+                .add_edge(cond_node, second_branch_node, Some(false));
 
             // second branch to exit
             self.cfg.add_edge(second_branch_node, exit_node, None);
 
             self.stmts(&second_branch_block.body)?;
 
-            //            self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
             self.ssa.seal_block(second_branch_node, &self.cfg)?;
         } else {
             self.cfg.add_edge(cond_node, exit_node, Some(false));
         }
-        //        if !exit.is_empty() {
-        //            for block in exit {
-        //                self.stmts(block);
-        //            }
-        //        }
+
         self.ssa.seal_block(exit_node, &self.cfg)?;
         self.current_node = exit_node;
         Ok(())
     }
 
     fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
-        // condition node and while body node
         let while_body = while_stmt.first_block();
         let (cond_node, wbn, while_exit_node) = self.prep_cond(while_stmt)?;
-        //while body back to condition, body back to condition is done in first edge created in
-        //func
-//        self.cfg.add_edge(exit_node, cond_node, None);
-        self.ssa.seal_block(wbn, &self.cfg)?;
 
         self.cfg.add_edge(cond_node, while_exit_node, Some(false));
 
-
         self.current_node = wbn;
         self.stmts(&while_body.body)?;
+        self.ssa.seal_block(wbn, &self.cfg)?;
 
-//        self.cfg.add_edge(self.current_node, while_exit_node, None);
         self.cfg.add_edge(self.current_node, cond_node, None);
 
-
-
         self.ssa.seal_block(cond_node, &self.cfg)?;
+
         self.ssa.seal_block(while_exit_node, &self.cfg)?;
+
         self.current_node = while_exit_node;
 
-
-        //        println!("EXIT: {exit:?}");
-        //        if !exit.is_empty() {
-        //            for block in exit {
-        //                self.stmts(block);
-        //            }
-        //        }
         Ok(())
     }
 
     fn ret_0(&mut self) {
-        self.set_current_node_term(Ir::Return0);
+        self.cfg[self.current_node].statements.push(Ir::Return0)
     }
 
     fn ret_1(&mut self, val: ExprId) {
-        self.set_current_node_term(Ir::Return1(val));
+        self.cfg[self.current_node]
+            .statements
+            .push(Ir::Return1(val))
     }
 
     fn block_stmt(&mut self, block: &Block) -> Result<()> {
@@ -303,24 +279,10 @@ impl CFGBuilder {
         // stmt is not a terminator
         if let Ok(ir_stmt) = Ir::try_from(stmt) {
             let mut vec: Vec<Symbol> = Vec::new();
-            match ir_stmt {
-                Ir::Var(name, val) => {
-                    self.ssa
-                        .write_variable(name, self.current_node, ssa::PhiOrExpr::Expr(val))
-                        .unwrap();
-                }
-                Ir::Expr(expr_id) => {
-                    if let Expr::Assign(assgn) = &self.expr_pool[expr_id] {
-                        self.ssa
-                            .write_variable(
-                                assgn.0,
-                                self.current_node,
-                                ssa::PhiOrExpr::Expr(assgn.1),
-                            )
-                            .unwrap();
-                    }
-                }
-                _ => {}
+            if let Some((name, val)) = Ir::get_name_val(stmt, &self.expr_pool) {
+                CFGBuilder::get_all_vars_used_in_expr(&self.expr_pool, val, &mut vec);
+                self.ssa
+                    .write_variable(name, self.current_node, ssa::PhiOrExpr::Expr(val))?;
             }
             self.ssa.process_all_vars_in_expr(
                 &self.expr_pool,
@@ -344,7 +306,6 @@ impl CFGBuilder {
 
 #[cfg(test)]
 mod cfg_tests {
-
     use super::*;
     use benlang_parser::Parser;
     use benlang_parser::scanner::Scanner;
@@ -354,23 +315,16 @@ mod cfg_tests {
     fn prep_parser_cfg() -> Parser {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {
-                    var test_var = 1;
-                    var while_cond = true;
+                    var test_var = 0;
                     var counter = 0;
-                    while (while_cond == true) {
+                    while (true== true) {
                         counter = counter + 1;
                         if (counter == 1000) {
-                            while_cond = false;
+                            test_var + 11223;
                         } else {
-                            while_cond = true;
+                            test_var - 100;
                         }
                     }
-                    if (true) {
-                        true;
-                    }
-                    var cond = true;
-                    var counter = 0;
-
                     var new_var = test_var + 1;
             }";
         println!("SRC: {SOURCE}");
@@ -399,7 +353,7 @@ mod cfg_tests {
             cfg_builder.build_func_cfg(func).unwrap();
             println!(
                 "{:?}",
-                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeNoLabel])
+                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeIndexLabel])
             );
         };
         assert_eq!(
