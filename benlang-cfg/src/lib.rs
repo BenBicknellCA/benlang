@@ -112,7 +112,7 @@ impl CFGBuilder {
     //            }
     //        }
     //    }
-    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> Result<(NodeIndex, NodeIndex)> {
+    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> Result<(NodeIndex, NodeIndex, NodeIndex,)> {
         let cond: ExprId = cond_stmt.cond();
         let cond_ir = self.expr_to_ir(cond);
         let cond_idx = self.current_node;
@@ -123,11 +123,13 @@ impl CFGBuilder {
             &mut cond_vars,
         );
         for var in cond_vars {
-            self.ssa.read_variable(var, cond_idx, &self.cfg).unwrap();
+            self.ssa.read_variable(var, cond_idx, &self.cfg)?;
         }
 
         self.set_current_node_term(cond_ir);
-        self.ssa.seal_block(cond_idx, &self.cfg).unwrap();
+        if !T::is_while() {
+            self.ssa.seal_block(cond_idx, &self.cfg)?;
+        }
 
         let first_branch_block = cond_stmt.first_block();
         let first_branch_node = self.add_empty_node_and_set_current();
@@ -137,12 +139,12 @@ impl CFGBuilder {
             self.stmts(&first_branch_block.body)?;
         }
 
-        Ok((cond_idx, first_branch_node))
+        Ok((cond_idx, first_branch_node, self.add_empty_node()))
     }
 
     fn process_if_stmt(&mut self, if_stmt: &If) -> Result<()> {
-        let (cond_node, fbn) = self.prep_cond(if_stmt)?;
-        let exit_node = self.add_empty_node();
+        let (cond_node, fbn, exit_node) = self.prep_cond(if_stmt)?;
+        self.cfg.add_edge(fbn, exit_node, None);
 
         self.ssa.seal_block(fbn, &self.cfg)?;
         // condition to first branch handled in fn prep_cond
@@ -153,7 +155,7 @@ impl CFGBuilder {
             let second_branch_node = self.add_empty_node_and_set_current();
 
             // condition to second branch
-            self.cfg.add_edge(cond_node, second_branch_node, Some(true));
+            self.cfg.add_edge(cond_node, second_branch_node, Some(false));
 
             // second branch to exit
             self.cfg.add_edge(second_branch_node, exit_node, None);
@@ -162,33 +164,44 @@ impl CFGBuilder {
 
             //            self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
             self.ssa.seal_block(second_branch_node, &self.cfg)?;
+        } else {
+            self.cfg.add_edge(cond_node, exit_node, Some(false));
         }
-        self.cfg.add_edge(fbn, exit_node, None);
-        self.current_node = exit_node;
         //        if !exit.is_empty() {
         //            for block in exit {
         //                self.stmts(block);
         //            }
         //        }
+        self.ssa.seal_block(exit_node, &self.cfg)?;
+        self.current_node = exit_node;
         Ok(())
     }
 
     fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
         // condition node and while body node
         let while_body = while_stmt.first_block();
-        let (cond_node, wbn) = self.prep_cond(while_stmt)?;
+        let (cond_node, wbn, while_exit_node) = self.prep_cond(while_stmt)?;
         //while body back to condition, body back to condition is done in first edge created in
         //func
-        self.cfg.add_edge(wbn, cond_node, None);
+//        self.cfg.add_edge(exit_node, cond_node, None);
         self.ssa.seal_block(wbn, &self.cfg)?;
 
-        let exit_node = self.add_empty_node_and_set_current();
-        self.cfg.add_edge(cond_node, exit_node, Some(false));
+        self.cfg.add_edge(cond_node, while_exit_node, Some(false));
+
 
         self.current_node = wbn;
         self.stmts(&while_body.body)?;
 
-        self.current_node = exit_node;
+//        self.cfg.add_edge(self.current_node, while_exit_node, None);
+        self.cfg.add_edge(self.current_node, cond_node, None);
+
+
+
+        self.ssa.seal_block(cond_node, &self.cfg)?;
+        self.ssa.seal_block(while_exit_node, &self.cfg)?;
+        self.current_node = while_exit_node;
+
+
         //        println!("EXIT: {exit:?}");
         //        if !exit.is_empty() {
         //            for block in exit {
@@ -341,12 +354,23 @@ mod cfg_tests {
     fn prep_parser_cfg() -> Parser {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {
-                    var test_var = 1 + 1;
-                    if (true == true) {
-                        test_var = 3;
-                    } else {
-                        test_var = 4;
+                    var test_var = 1;
+                    var while_cond = true;
+                    var counter = 0;
+                    while (while_cond == true) {
+                        counter = counter + 1;
+                        if (counter == 1000) {
+                            while_cond = false;
+                        } else {
+                            while_cond = true;
+                        }
                     }
+                    if (true) {
+                        true;
+                    }
+                    var cond = true;
+                    var counter = 0;
+
                     var new_var = test_var + 1;
             }";
         println!("SRC: {SOURCE}");
