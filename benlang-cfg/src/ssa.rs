@@ -61,13 +61,13 @@ impl SSABuilder {
         ssa
     }
 
-    pub fn add_block(&mut self, block: NodeIndex, cfg: &CFG, seal: bool) -> Result<()> {
+    pub fn add_block(&mut self, block: NodeIndex, cfg: &CFG, seal: bool) -> Result<NodeIndex> {
         self.borrow_var_defs_mut_pub().insert(block, HashMap::new());
         self.borrow_inc_phis_mut_pub().insert(block, HashMap::new());
         if seal {
             self.seal_block(block, cfg)?;
         };
-        Ok(())
+        Ok(block)
     }
 
     pub fn add_user(&self, phi_users: &mut PhiUsers, usee: PhiId, name: Symbol, block: NodeIndex) {
@@ -144,6 +144,12 @@ impl SSABuilder {
     ) -> Result<PhiOrExpr> {
         if let Some(map) = self.var_defs.get(block) {
             if let Some(phi_or_expr) = map.get(&variable) {
+                println!(
+                    "reading: {:?} in {:?} // value = {:?}",
+                    self.symbol_table.resolve(variable).unwrap(),
+                    block,
+                    phi_or_expr
+                );
                 return Ok(*phi_or_expr);
             }
         }
@@ -181,7 +187,6 @@ impl SSABuilder {
         for (var, phi) in inc_phis {
             self.add_phi_operands(var, phi, cfg)?;
         }
-
         self.borrow_sealed_blocks_mut_pub().insert(block);
         Ok(())
     }
@@ -189,6 +194,7 @@ impl SSABuilder {
     fn add_phi_operands(&mut self, variable: Symbol, phi_id: PhiId, cfg: &CFG) -> Result<()> {
         for pred in SSABuilder::get_preds(self.phis_to_block[phi_id], cfg) {
             let opnd = self.read_variable(variable, pred, cfg)?;
+
             self.borrow_phi_opnds_mut_pub()[phi_id].push(opnd);
         }
         Ok(())

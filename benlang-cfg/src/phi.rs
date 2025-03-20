@@ -46,7 +46,7 @@ impl Index<NodeIndex> for IncompletePhis {
 
 pub type SealedBlocks = HashSet<NodeIndex>;
 #[derive(Debug, Default)]
-pub struct VarDefs(HashMap<NodeIndex, HashMap<Symbol, PhiOrExpr>>);
+pub struct VarDefs(pub HashMap<NodeIndex, HashMap<Symbol, PhiOrExpr>>);
 impl VarDefs {
     pub fn new() -> Self {
         Self::default()
