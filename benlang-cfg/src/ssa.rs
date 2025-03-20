@@ -13,7 +13,6 @@ use benlang_parser::{
 };
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;
-use petgraph::visit::IntoNeighborsDirected;
 use slotmap::new_key_type;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
@@ -33,7 +32,7 @@ impl PhiOrExpr {
 new_key_type! {pub struct PhiId;}
 
 pub struct SSABuilder {
-    symbol_table: SymbolTable,
+    pub symbol_table: SymbolTable,
     pub incomplete_phis: IncompletePhis,
     pub var_defs: VarDefs,
     pub sealed_blocks: SealedBlocks,
@@ -62,21 +61,14 @@ impl SSABuilder {
         ssa
     }
 
-    // incomplete_phis: &mut IncompletePhis, var_defs: &mut VarDefs
-
-    pub fn add_block(&mut self, block: NodeIndex, cfg: &CFG, seal: bool) -> Result<()> {
+    pub fn add_block(&mut self, block: NodeIndex, cfg: &CFG, seal: bool) -> Result<NodeIndex> {
         self.borrow_var_defs_mut_pub().insert(block, HashMap::new());
         self.borrow_inc_phis_mut_pub().insert(block, HashMap::new());
         if seal {
             self.seal_block(block, cfg)?;
         };
-        Ok(())
+        Ok(block)
     }
-
-    // sus
-    //    pub fn reset(self) -> Self {
-    //        SSABuilder::new(self.symbol_table)
-    //    }
 
     pub fn add_user(&self, phi_users: &mut PhiUsers, usee: PhiId, name: Symbol, block: NodeIndex) {
         phi_users.get_mut(usee).push(User(block, name));
@@ -120,7 +112,7 @@ impl SSABuilder {
     pub fn reroute_all_uses(&mut self, replace: PhiId, replace_with: PhiOrExpr) {
         // switch all uses of `replace` to `replace_with`
         if let PhiOrExpr::Phi(replace_with) = replace_with {
-            let mut users = std::mem::take(self.borrow_phi_users_mut_pub().get_mut(replace));
+            let mut users = std::mem::take(&mut self.phi_users[replace]);
             self.borrow_phi_users_mut_pub()[replace_with].append(&mut users);
             self.phis_to_block[replace] = self.phis_to_block[replace_with];
         }
@@ -150,15 +142,19 @@ impl SSABuilder {
         block: NodeIndex,
         cfg: &CFG,
     ) -> Result<PhiOrExpr> {
-        //                println!("attempting to read: {:?} // block {block:?}", self.symbol_table.resolve(variable));
         if let Some(map) = self.var_defs.get(block) {
             if let Some(phi_or_expr) = map.get(&variable) {
+                println!(
+                    "reading: {:?} in {:?} // value = {:?}",
+                    self.symbol_table.resolve(variable).unwrap(),
+                    block,
+                    phi_or_expr
+                );
                 return Ok(*phi_or_expr);
             }
         }
         self.read_variable_recursive(variable, block, cfg)
     }
-    //    fn get_preds(&self, block: BBId, cfg: &CFG) -> Edges<Option<bool>, Directed> {
     fn get_preds_count(block: NodeIndex, cfg: &CFG) -> usize {
         let preds = SSABuilder::get_preds(block, cfg).count();
         preds
@@ -187,21 +183,19 @@ impl SSABuilder {
     }
 
     pub fn seal_block(&mut self, block: NodeIndex, cfg: &CFG) -> Result<()> {
-        while let Some((var, phi)) = self.incomplete_phis[block].iter().next() {
-            self.add_phi_operands(*var, *phi, cfg)?;
+        let inc_phis: HashMap<Symbol, PhiId> = std::mem::take(&mut self.incomplete_phis[block]);
+        for (var, phi) in inc_phis {
+            self.add_phi_operands(var, phi, cfg)?;
         }
-
         self.borrow_sealed_blocks_mut_pub().insert(block);
         Ok(())
     }
 
-    fn insert_phi_opnd(&self, phi_id: PhiId, val: PhiOrExpr) {}
-
     fn add_phi_operands(&mut self, variable: Symbol, phi_id: PhiId, cfg: &CFG) -> Result<()> {
-        let phi_block = self.phis_to_block[phi_id];
-        for pred in SSABuilder::get_preds(phi_block, cfg) {
-            let val = self.read_variable(variable, pred, cfg)?;
-            self.borrow_phi_opnds_mut_pub()[phi_id].push(val);
+        for pred in SSABuilder::get_preds(self.phis_to_block[phi_id], cfg) {
+            let opnd = self.read_variable(variable, pred, cfg)?;
+
+            self.borrow_phi_opnds_mut_pub()[phi_id].push(opnd);
         }
         Ok(())
     }

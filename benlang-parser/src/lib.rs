@@ -296,7 +296,6 @@ impl Parser {
 
 #[cfg(test)]
 mod parser_tests {
-
     use super::*;
     use crate::scanner::Scanner;
 
@@ -319,7 +318,7 @@ mod parser_tests {
                 } else {
                     {
                     while (true) {
-                        2 + 2;
+                        test_var < 1;
                         3 + 3;
                         4 + 4;
                         1 + 1;

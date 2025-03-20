@@ -51,6 +51,11 @@ impl TryFrom<Token> for BinaryOp {
             Token::Slash => BinaryOp::Slash,
             Token::EqualEqual => BinaryOp::Equal,
             Token::BangEqual => BinaryOp::NotEqual,
+            Token::GreaterEqual => BinaryOp::GreaterEqual,
+            Token::LessEqual => BinaryOp::LessEqual,
+            Token::Greater => BinaryOp::GreaterThan,
+            Token::Less => BinaryOp::LessThan,
+
             _ => return Err(ParseError::InvalidOp { op: token }.into()),
         };
         Ok(op)

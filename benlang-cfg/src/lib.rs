@@ -11,13 +11,13 @@ use benlang_parser::expr_parser::ExprId;
 use benlang_parser::scanner::{Symbol, SymbolTable};
 use benlang_parser::stmt_parser::StmtId;
 use benlang_parser::{
-    ExprPool, StmtPool,
-    expr::Expr,
-    object::Function,
+    expr::Expr, object::Function,
     stmt::{Block, Conditional, If, Stmt, While},
+    ExprPool,
+    StmtPool,
 };
 
-use petgraph::{Graph, graph::NodeIndex};
+use petgraph::{graph::NodeIndex, Graph};
 
 pub type CFG = Graph<BasicBlock, Option<bool>>;
 
@@ -69,22 +69,16 @@ impl CFGBuilder {
         self.get_current_bb().is_empty()
     }
 
-    fn add_empty_node(&mut self) -> NodeIndex {
+    fn add_empty_node(&mut self, seal: bool) -> NodeIndex {
         let node_index = self.cfg.add_node(BasicBlock::default());
         self.cfg.node_weight_mut(node_index).unwrap().node_index = node_index;
-        self.ssa.add_block(node_index, &self.cfg, false).unwrap();
+        self.ssa.add_block(node_index, &self.cfg, seal).unwrap();
         node_index
     }
 
     fn add_ir_stmt_to_current_node(&mut self, ir_stmt: Ir) {
         if let Some(current_node) = self.cfg.node_weight_mut(self.current_node) {
             current_node.append_body(ir_stmt);
-        }
-    }
-
-    fn set_current_node_term(&mut self, ir_stmt: Ir) {
-        if let Some(current_node) = self.cfg.node_weight_mut(self.current_node) {
-            current_node.set_term(ir_stmt);
         }
     }
 
@@ -100,128 +94,76 @@ impl CFGBuilder {
         Ir::try_from(&Stmt::Expr(cond)).unwrap()
     }
 
-    fn add_empty_node_and_set_current(&mut self) -> NodeIndex {
-        self.current_node = self.add_empty_node();
+    fn add_empty_node_and_set_current(&mut self, seal: bool) -> NodeIndex {
+        self.current_node = self.add_empty_node(seal);
         self.current_node
     }
 
-    //    fn process_split_vec(&mut self, vec_vec: &[&[StmtId]]) {
-    //        for vec in vec_vec {
-    //            for stmt in vec.iter() {
-    //                self.stmt(*stmt);
-    //            }
-    //        }
-    //    }
-    fn prep_cond<T: Conditional>(&mut self, cond_stmt: &T) -> Result<(NodeIndex, NodeIndex, NodeIndex,)> {
-        let cond: ExprId = cond_stmt.cond();
-        let cond_ir = self.expr_to_ir(cond);
-        let cond_idx = self.current_node;
-        let mut cond_vars = Vec::new();
-        CFGBuilder::get_all_vars_used_in_expr(
-            &self.expr_pool,
-            cond_ir.get_expr().unwrap(),
-            &mut cond_vars,
-        );
-        for var in cond_vars {
-            self.ssa.read_variable(var, cond_idx, &self.cfg)?;
-        }
-
-        self.set_current_node_term(cond_ir);
-        if !T::is_while() {
-            self.ssa.seal_block(cond_idx, &self.cfg)?;
-        }
-
-        let first_branch_block = cond_stmt.first_block();
-        let first_branch_node = self.add_empty_node_and_set_current();
-
-        self.cfg.add_edge(cond_idx, first_branch_node, Some(true));
-        if !T::is_while() {
-            self.stmts(&first_branch_block.body)?;
-        }
-
-        Ok((cond_idx, first_branch_node, self.add_empty_node()))
-    }
-
     fn process_if_stmt(&mut self, if_stmt: &If) -> Result<()> {
-        let (cond_node, fbn, exit_node) = self.prep_cond(if_stmt)?;
-        self.cfg.add_edge(fbn, exit_node, None);
+        let cond_ir = self.expr_to_ir(if_stmt.cond());
+        let if_entry = self.current_node;
+        let if_exit = self.add_empty_node(false);
+        self.cfg[if_entry].statements.push(cond_ir);
+        self.ssa.seal_block(if_entry, &self.cfg)?;
 
-        self.ssa.seal_block(fbn, &self.cfg)?;
-        // condition to first branch handled in fn prep_cond
+        let then_entry = self.add_empty_node_and_set_current(false);
+        self.cfg.add_edge(if_entry, then_entry, Some(true));
+        self.ssa.seal_block(then_entry, &self.cfg)?;
+        self.stmts(&if_stmt.first_block().body)?;
 
-        // first branch to exit
+        self.cfg.add_edge(self.current_node, if_exit, None);
 
         if let Some(second_branch_block) = if_stmt.second_block() {
-            let second_branch_node = self.add_empty_node_and_set_current();
+            let else_entry = self.add_empty_node_and_set_current(false);
 
-            // condition to second branch
-            self.cfg.add_edge(cond_node, second_branch_node, Some(false));
-
-            // second branch to exit
-            self.cfg.add_edge(second_branch_node, exit_node, None);
+            self.cfg.add_edge(if_entry, else_entry, Some(false));
+            self.ssa.seal_block(else_entry, &self.cfg)?;
 
             self.stmts(&second_branch_block.body)?;
-
-            //            self.process_split_vec(second_branch_block.get_body_split_at_leaders().as_ref());
-            self.ssa.seal_block(second_branch_node, &self.cfg)?;
-        } else {
-            self.cfg.add_edge(cond_node, exit_node, Some(false));
+            self.cfg.add_edge(self.current_node, if_exit, None);
         }
-        //        if !exit.is_empty() {
-        //            for block in exit {
-        //                self.stmts(block);
-        //            }
-        //        }
-        self.ssa.seal_block(exit_node, &self.cfg)?;
-        self.current_node = exit_node;
+
+        self.current_node = if_exit;
+
         Ok(())
     }
 
     fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
-        // condition node and while body node
-        let while_body = while_stmt.first_block();
-        let (cond_node, wbn, while_exit_node) = self.prep_cond(while_stmt)?;
-        //while body back to condition, body back to condition is done in first edge created in
-        //func
-//        self.cfg.add_edge(exit_node, cond_node, None);
-        self.ssa.seal_block(wbn, &self.cfg)?;
+        let cond_ir = self.expr_to_ir(while_stmt.cond());
+        let while_entry = self.current_node;
+        let while_header = self.add_empty_node(false);
+        self.cfg[while_header].statements.push(cond_ir);
+        self.cfg.add_edge(while_entry, while_header, None);
+        let body_entry = self.add_empty_node(false);
+        let while_exit = self.add_empty_node(false);
+        self.cfg.add_edge(while_header, body_entry, Some(true));
+        self.cfg.add_edge(while_header, while_exit, Some(false));
+        self.ssa.seal_block(body_entry, &self.cfg)?;
+        self.current_node = body_entry;
+        self.stmts(&while_stmt.first_block().body)?;
 
-        self.cfg.add_edge(cond_node, while_exit_node, Some(false));
-
-
-        self.current_node = wbn;
-        self.stmts(&while_body.body)?;
-
-//        self.cfg.add_edge(self.current_node, while_exit_node, None);
-        self.cfg.add_edge(self.current_node, cond_node, None);
-
-
-
-        self.ssa.seal_block(cond_node, &self.cfg)?;
-        self.ssa.seal_block(while_exit_node, &self.cfg)?;
-        self.current_node = while_exit_node;
-
-
-        //        println!("EXIT: {exit:?}");
-        //        if !exit.is_empty() {
-        //            for block in exit {
-        //                self.stmts(block);
-        //            }
-        //        }
+        let body_exit = self.current_node;
+        self.ssa.seal_block(body_exit, &self.cfg)?;
+        self.cfg.add_edge(body_exit, while_header, None);
+        self.ssa.seal_block(while_header, &self.cfg)?;
+        self.ssa.seal_block(while_exit, &self.cfg)?;
+        self.current_node = while_exit;
         Ok(())
     }
 
     fn ret_0(&mut self) {
-        self.set_current_node_term(Ir::Return0);
+        self.cfg[self.current_node].statements.push(Ir::Return0)
     }
 
     fn ret_1(&mut self, val: ExprId) {
-        self.set_current_node_term(Ir::Return1(val));
+        self.cfg[self.current_node]
+            .statements
+            .push(Ir::Return1(val))
     }
 
     fn block_stmt(&mut self, block: &Block) -> Result<()> {
         let prev = self.current_node;
-        let block_stmt_node = self.add_empty_node_and_set_current();
+        let block_stmt_node = self.add_empty_node_and_set_current(false);
         self.cfg.add_edge(prev, block_stmt_node, None);
         self.stmts(&block.body)
         //        self.process_split_vec(&block.get_body_split_at_leaders());
@@ -297,44 +239,54 @@ impl CFGBuilder {
         Ok(())
     }
 
-    fn stmt(&mut self, stmt_id: StmtId) -> Result<bool> {
+    fn process_all_vars_in_stmt(&mut self, stmt_id: StmtId) -> Result<()> {
+        let mut vec = Vec::new();
         let stmt = &self.stmt_pool[stmt_id];
-
-        // stmt is not a terminator
-        if let Ok(ir_stmt) = Ir::try_from(stmt) {
-            let mut vec: Vec<Symbol> = Vec::new();
-            match ir_stmt {
-                Ir::Var(name, val) => {
-                    self.ssa
-                        .write_variable(name, self.current_node, ssa::PhiOrExpr::Expr(val))
-                        .unwrap();
+        match stmt {
+            Stmt::Block(blck) => for stmt in &blck.body {},
+            Stmt::Expr(expr_id) => {
+                if let Expr::Assign(assign) = &self.expr_pool[*expr_id] {
+                    self.ssa.write_variable(
+                        assign.0,
+                        self.current_node,
+                        ssa::PhiOrExpr::Expr(assign.1),
+                    )?;
                 }
-                Ir::Expr(expr_id) => {
-                    if let Expr::Assign(assgn) = &self.expr_pool[expr_id] {
-                        self.ssa
-                            .write_variable(
-                                assgn.0,
-                                self.current_node,
-                                ssa::PhiOrExpr::Expr(assgn.1),
-                            )
-                            .unwrap();
-                    }
-                }
-                _ => {}
+                self.ssa.process_all_vars_in_expr(
+                    &self.expr_pool,
+                    *expr_id,
+                    &mut vec,
+                    self.current_node,
+                    &self.cfg,
+                );
             }
-            self.ssa.process_all_vars_in_expr(
-                &self.expr_pool,
-                ir_stmt.get_expr().unwrap(),
-                &mut vec,
-                self.current_node,
-                &self.cfg,
-            );
-            self.add_ir_stmt_to_current_node(ir_stmt);
-            return Ok(false);
+            Stmt::Var(name, val) => {
+                self.ssa
+                    .write_variable(*name, self.current_node, ssa::PhiOrExpr::Expr(*val))?;
+                self.ssa.process_all_vars_in_expr(
+                    &self.expr_pool,
+                    *val,
+                    &mut vec,
+                    self.current_node,
+                    &self.cfg,
+                );
+            }
+            _ => {}
         }
-        assert!(self.stmt_pool[stmt_id].is_term());
-        self.term_stmt(stmt_id)?;
-        Ok(true)
+        Ok(())
+    }
+
+    fn stmt(&mut self, stmt_id: StmtId) -> Result<bool> {
+        self.process_all_vars_in_stmt(stmt_id)?;
+        if self.stmt_pool[stmt_id].is_term() {
+            self.term_stmt(stmt_id)?;
+            return Ok(true);
+        }
+        if let Ok(ir_stmt) = Ir::try_from(&self.stmt_pool[stmt_id]) {
+            self.add_ir_stmt_to_current_node(ir_stmt);
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     pub fn build_func_cfg(&mut self, func: &Function) -> Result<()> {
@@ -344,36 +296,26 @@ impl CFGBuilder {
 
 #[cfg(test)]
 mod cfg_tests {
-
     use super::*;
-    use benlang_parser::Parser;
     use benlang_parser::scanner::Scanner;
+    use benlang_parser::Parser;
     use petgraph::dot::{Config, Dot};
     // test_var * 2
 
     fn prep_parser_cfg() -> Parser {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {
-                    var test_var = 1;
-                    var while_cond = true;
-                    var counter = 0;
-                    while (while_cond == true) {
-                        counter = counter + 1;
-                        if (counter == 1000) {
-                            while_cond = false;
+                    var test_var = 0;
+                    while (true) {
+                        if (true) {
+                            test_var = 11223;
                         } else {
-                            while_cond = true;
+                            test_var = 100;
                         }
                     }
-                    if (true) {
-                        true;
-                    }
-                    var cond = true;
-                    var counter = 0;
-
+                    test_var + 3000;
                     var new_var = test_var + 1;
             }";
-        println!("SRC: {SOURCE}");
         let mut scanner = Scanner::new(SOURCE);
         scanner.scan();
 
@@ -399,9 +341,10 @@ mod cfg_tests {
             cfg_builder.build_func_cfg(func).unwrap();
             println!(
                 "{:?}",
-                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeNoLabel])
+                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeIndexLabel])
             );
         };
+
         assert_eq!(
             cfg_builder.cfg.node_count(),
             cfg_builder.ssa.sealed_blocks.len()
