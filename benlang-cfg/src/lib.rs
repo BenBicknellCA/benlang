@@ -2,6 +2,7 @@ mod basic_block;
 mod ir;
 mod phi;
 mod ssa;
+mod min_ssa;
 
 use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
@@ -344,6 +345,8 @@ mod cfg_tests {
                 Dot::with_config(&cfg_builder.cfg, &[Config::EdgeIndexLabel])
             );
         };
+        let phis: std::collections::HashSet<ssa::PhiId> = cfg_builder.ssa.phis.0.keys().collect();
+        cfg_builder.remove_redundant_phis(&phis);
 
         assert_eq!(
             cfg_builder.cfg.node_count(),
