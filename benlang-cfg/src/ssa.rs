@@ -17,7 +17,7 @@ use slotmap::new_key_type;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum PhiOrExpr {
     Expr(ExprId),
     Phi(PhiId),
