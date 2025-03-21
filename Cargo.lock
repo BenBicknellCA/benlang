@@ -12,40 +12,25 @@ checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 name = "benlang"
 version = "0.1.0"
 dependencies = [
- "benlang-cfg",
- "benlang-mem",
- "benlang-parser",
+ "cfg",
+ "parser",
  "petgraph",
 ]
 
 [[package]]
-name = "benlang-cfg"
+name = "cfg"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "benlang-parser",
+ "parser",
  "petgraph",
  "slotmap",
  "thiserror",
 ]
 
 [[package]]
-name = "benlang-mem"
+name = "codegen"
 version = "0.1.0"
-dependencies = [
- "benlang-parser",
-]
-
-[[package]]
-name = "benlang-parser"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "enum_dispatch",
- "slotmap",
- "string-interner",
- "thiserror",
-]
 
 [[package]]
 name = "enum_dispatch"
@@ -101,6 +86,17 @@ name = "once_cell"
 version = "1.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d75b0bedcc4fe52caa0e03d9f1151a323e4aa5e2d78ba3580400cd3c9e2bc4bc"
+
+[[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "enum_dispatch",
+ "slotmap",
+ "string-interner",
+ "thiserror",
+]
 
 [[package]]
 name = "petgraph"

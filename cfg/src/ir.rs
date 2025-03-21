@@ -1,8 +1,8 @@
-use benlang_parser::expr::Expr;
-use benlang_parser::expr_parser::ExprId;
-use benlang_parser::object::Function;
-use benlang_parser::scanner::Symbol;
-use benlang_parser::stmt::Stmt;
+use parser::expr::Expr;
+use parser::expr_parser::ExprId;
+use parser::object::Function;
+use parser::scanner::Symbol;
+use parser::stmt::Stmt;
 
 #[derive(Debug)]
 pub enum Ir {

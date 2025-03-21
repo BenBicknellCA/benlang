@@ -6,7 +6,7 @@
 use crate::CFG;
 use crate::phi::*;
 use anyhow::{Result, anyhow};
-use benlang_parser::{
+use parser::{
     ExprPool,
     expr_parser::ExprId,
     scanner::{Symbol, SymbolTable},
