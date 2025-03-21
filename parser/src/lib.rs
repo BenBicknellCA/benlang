@@ -82,7 +82,7 @@ impl From<Token> for Precedence {
         match val {
             Token::StringLiteral(_) => Precedence::Primary,
             Token::Number(_) => Precedence::Primary,
-            Token::Double(_) => Precedence::Primary,
+            //            Token::Double(_) => Precedence::Primary,
             Token::Plus => Precedence::Term,
             Token::Minus => Precedence::Term,
             Token::Slash => Precedence::Factor,

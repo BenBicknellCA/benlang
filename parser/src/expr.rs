@@ -2,7 +2,8 @@ use crate::Object;
 use crate::ParseError;
 use crate::Stmt;
 use crate::expr_parser::ExprId;
-use crate::scanner::{Symbol, Token};
+use crate::scanner::{Symbol, SymbolTable, Token};
+use crate::value::{Literal, Value};
 use anyhow::{Error, Result, anyhow};
 use enum_dispatch::enum_dispatch;
 
@@ -31,7 +32,7 @@ pub enum BinaryOp {
 
 impl TryFrom<Token> for UnaryOp {
     type Error = Error;
-    fn try_from(token: Token) -> Result<UnaryOp, Error> {
+    fn try_from(token: Token) -> Result<UnaryOp> {
         let op = match token {
             Token::Minus => UnaryOp::Minus,
             Token::Bang => UnaryOp::Bang,
@@ -43,7 +44,7 @@ impl TryFrom<Token> for UnaryOp {
 
 impl TryFrom<Token> for BinaryOp {
     type Error = Error;
-    fn try_from(token: Token) -> Result<BinaryOp, Error> {
+    fn try_from(token: Token) -> Result<BinaryOp> {
         let op = match token {
             Token::Plus => BinaryOp::Plus,
             Token::Minus => BinaryOp::Minus,
@@ -95,31 +96,35 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn get_value(&self) -> Result<&Value, ()> {
+    pub fn get_value(&self) -> Result<&Value> {
         if let Expr::Value(val) = self {
             return Ok(val);
         }
-        Err(())
+        Err(anyhow!("cannot get value from {:?}", self))
     }
 
-    pub fn get_binary(&self) -> Result<Binary, ()> {
+    pub fn get_binary(&self) -> Result<Binary> {
         if let Expr::Binary(binary) = self {
             return Ok(*binary);
         }
-        Err(())
+        Err(anyhow!("cannot get binary from {:?}", self))
     }
-    pub fn get_unary(&self) -> Result<Unary, ()> {
+    pub fn get_unary(&self) -> Result<Unary> {
         if let Expr::Unary(unary) = self {
             return Ok(*unary);
         }
-        Err(())
+        Err(anyhow!("cannot get unary from {:?}", self))
+    }
+
+    pub fn is_string_val(&self) -> bool {
+        if let Expr::Value(Value::Literal(Literal::String(_))) = self {
+            return true;
+        }
+        false
     }
 
     pub fn can_concat(&self, other: &Expr) -> bool {
-        if let Expr::Value(Value::StringLiteral(_)) = self {
-            return std::mem::discriminant(self) == std::mem::discriminant(other);
-        };
-        false
+        self.is_string_val() && other.is_string_val()
     }
 }
 
@@ -175,13 +180,4 @@ pub struct Call {
     callee: ExprId,
     paren: Token,
     args: Vec<ExprId>,
-}
-
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
-pub enum Value {
-    Object(Object),
-    Number(f32),
-    StringLiteral(Symbol),
-    Bool(bool),
-    Nil,
 }

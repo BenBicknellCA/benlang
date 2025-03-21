@@ -1,6 +1,7 @@
 use crate::Parser;
 use crate::expr::*;
 use crate::expr_parser::*;
+use crate::value::{Literal, Value};
 
 use crate::object::Function;
 use crate::scanner::Symbol;
@@ -92,7 +93,7 @@ impl Parser {
         let var_val: ExprId = if self.consume(Token::Equal).is_ok() {
             self.expression()?
         } else {
-            self.expr_pool.insert(Value::Nil.into())
+            self.expr_pool.insert(Value::Literal(Literal::Nil).into())
         };
 
         self.consume(Token::Semicolon)?;
