@@ -30,8 +30,8 @@ pub enum Token {
     LessEqual,
     Identifier(Symbol),
     StringLiteral(Symbol),
-    Number(f32),
-    Double(f32),
+    Number(f64),
+    //    Double(f32),
     And,
     Class,
     Else,
@@ -149,7 +149,7 @@ impl From<Token> for usize {
             Token::Identifier(_) => 21,
             Token::StringLiteral(_) => 22,
             Token::Number(_) => 23,
-            Token::Double(_) => 24,
+            //            Token::Double(_) => 24,
             Token::And => 25,
             Token::Class => 26,
             Token::Else => 27,
@@ -274,7 +274,7 @@ impl Scanner<'_> {
         }
 
         let num_string: &str = &self.source[pos..end];
-        let num_flt: f32 = num_string.parse().expect("Invalid number format");
+        let num_flt: f64 = num_string.parse().expect("Invalid number format");
         self.tokens.push(Token::Number(num_flt));
     }
 

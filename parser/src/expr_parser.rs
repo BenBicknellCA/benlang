@@ -1,9 +1,10 @@
 //do not remove
 use crate::Precedence;
 use crate::expr::Expr;
-use crate::expr::{BinaryOp, Unary, UnaryOp, Value, Variable};
+use crate::expr::{BinaryOp, Unary, UnaryOp, Variable};
 use crate::scanner::Symbol;
 use crate::scanner::Token;
+use crate::value::{Literal, Value};
 use crate::{ParseError, Parser};
 use anyhow::Result;
 use slotmap::new_key_type;
@@ -36,19 +37,23 @@ impl Parser {
     }
 
     fn string_lit(&mut self, string_key: Symbol) -> Result<ExprId> {
-        self.insert_expr(Value::StringLiteral(string_key).into())
+        self.insert_expr(Value::Literal(Literal::String(string_key)).into())
     }
 
-    fn number(&mut self, num: f32) -> Result<ExprId> {
-        self.insert_expr(Value::Number(num).into())
+    fn number(&mut self, num: f64) -> Result<ExprId> {
+        self.insert_expr(Value::Literal(Literal::Number(num)).into())
     }
 
     fn primary(&mut self, token: Token) -> Result<ExprId> {
         match token {
             Token::Number(num) => self.number(num),
             Token::StringLiteral(strng) => self.string_lit(strng),
-            Token::True => Ok(self.expr_pool.insert(Value::Bool(true).into())),
-            Token::False => Ok(self.expr_pool.insert(Value::Bool(false).into())),
+            Token::True => Ok(self
+                .expr_pool
+                .insert(Value::Literal(Literal::Bool(true)).into())),
+            Token::False => Ok(self
+                .expr_pool
+                .insert(Value::Literal(Literal::Bool(false)).into())),
             _ => Err(ParseError::InvalidPrimary { primary: token }.into()),
         }
     }

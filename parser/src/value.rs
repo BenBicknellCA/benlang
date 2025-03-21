@@ -1,126 +1,170 @@
 use crate::ExprPool;
-use crate::Value;
 use crate::expr;
+use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
 use anyhow::{Error, Result, anyhow};
+use std::mem::discriminant;
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
-macro_rules! value_impl_bin_ops_ref {
-    ($ident:path, $op:tt, $sym:tt, $variant:tt) => {
-        impl $ident for &Value {
-            type Output = Value;
-            fn $op(self, other: Self) -> Self::Output{
-                if let Value::$variant(lhs) = self {
-                    if let Value::$variant(rhs) = other {
-                        return Value::$variant(lhs $sym rhs);
-                    }
-                }
-            panic!("Cannot perform operation between {:?} and {:?} // strings must be manually \
-            concat with the function in impl Value", self, other)
+
+#[derive(Debug, PartialEq, Clone, PartialOrd)]
+pub enum Value {
+    Object(Object),
+    Literal(Literal),
+}
+
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+pub enum Literal {
+    String(Symbol),
+    Number(f64),
+    Bool(bool),
+    Nil,
+}
+
+impl Literal {
+    pub fn get_bool(self) -> Result<bool> {
+        if let Literal::Bool(boolval) = self {
+            return Ok(boolval);
+        }
+        Err(anyhow!("cannot get bool from {:?}", self))
+    }
+
+    pub fn is_string(&self) -> bool {
+        if let Literal::String(_) = *self {
+            return true;
+        }
+        false
+    }
+    pub fn same_discriminant(&self, other: &Self) -> bool {
+        discriminant(self) == discriminant(other)
+    }
+    pub fn add_string(self, other: Literal, symbol_table: &mut SymbolTable) -> Result<Self> {
+        if let Literal::String(lhs) = self {
+            if let Literal::String(rhs) = other {
+                let lhs = symbol_table.resolve(lhs).unwrap();
+                let rhs = symbol_table.resolve(rhs).unwrap();
+                let concat = symbol_table.get_or_intern(lhs.to_string() + rhs);
+                return Ok(Literal::String(concat));
             }
         }
+        Err(anyhow!("Cannot {:?} add {:?}", self, other))
+    }
+    pub fn get_symbol(&self) -> Result<Symbol> {
+        if let Literal::String(sym) = self {
+            return Ok(*sym);
+        }
+        Err(anyhow!("Cannot get symbol from: {:?}", self))
+    }
+    pub fn get_number(&self) -> Result<f64> {
+        if let Literal::Number(num) = self {
+            return Ok(*num);
+        }
+        Err(anyhow!("Cannot get number from: {:?}", self))
+    }
+    pub fn is_number(&self) -> bool {
+        if let Literal::Number(_) = self {
+            return true;
+        }
+        false
+    }
+}
+impl Mul for Literal {
+    type Output = Literal;
+
+    fn mul(self, other: Literal) -> Literal {
+        assert!(self.is_number() && other.is_number());
+
+        if let Literal::Number(lhs) = self {
+            let rhs = other.get_number().unwrap();
+            return Literal::Number(lhs / rhs);
+        }
+        panic!("Cannot mul {:?} * {:?}", self, other)
     }
 }
 
-macro_rules! value_impl_bin_ops {
-    ($ident:path, $op:tt, $sym:tt, $variant:tt) => {
-        impl $ident for Value {
-            type Output = Value ;
-            fn $op(self, other: Self) -> Self::Output {
-                if let Value::$variant(lhs) = self {
-                    if let Value::$variant(rhs) = other {
-                        return Value::$variant(lhs $sym rhs);
-                    }
-                }
-            panic!("Cannot perform operation between {:?} and {:?} // strings must be manually \
-            concat with the function in impl Value", self, other)
-            }
+impl Div for Literal {
+    type Output = Literal;
+
+    fn div(self, other: Literal) -> Literal {
+        assert!(self.is_number() && other.is_number());
+
+        if let Literal::Number(lhs) = self {
+            let rhs = other.get_number().unwrap();
+            return Literal::Number(lhs / rhs);
         }
-    }
-}
-macro_rules! value_impl {
-    ($op:tt, $variant:tt, $sym:tt) => {
-
-            type Output = Self;
-            fn $op(self) -> Self::Output {
-                if let Value::$variant(val) = self {
-                    return Value::$variant($sym val);
-                }
-                panic!()}
-            }
-
-    }
-
-value_impl_bin_ops_ref!(Add, add, +, Number);
-value_impl_bin_ops_ref!(Sub, sub, -, Number);
-value_impl_bin_ops_ref!(Mul, mul, *, Number);
-value_impl_bin_ops_ref!(Div, div, /, Number);
-
-value_impl_bin_ops!(Add, add, +, Number);
-value_impl_bin_ops!(Sub, sub, -, Number);
-value_impl_bin_ops!(Mul, mul, *, Number);
-value_impl_bin_ops!(Div, div, /, Number);
-
-impl Not for Value {
-    type Output = Value;
-    fn not(self) -> Self::Output {
-        if let Value::Bool(boolval) = self {
-            return Value::Bool(!boolval);
-        }
-        panic!()
+        panic!("Cannot div {:?} / {:?}", self, other)
     }
 }
 
-impl Neg for Value {
-    type Output = Value;
-    fn neg(self) -> Self::Output {
-        if let Value::Number(num) = self {
-            return Value::Number(num.neg());
+impl Add for Literal {
+    type Output = Literal;
+
+    fn add(self, other: Literal) -> Literal {
+        assert!(self.is_number() && other.is_number() || self.is_string() && other.is_string());
+        if let Literal::Number(lhs) = self {
+            let rhs = other.get_number().unwrap();
+            return Literal::Number(lhs + rhs);
         }
-        panic!()
+        panic!("Cannot add {:?} and {:?} with `+` operator", self, other)
     }
 }
 
-impl Not for &Value {
-    type Output = Value;
-    fn not(self) -> Self::Output {
-        if let Value::Bool(boolval) = self {
-            return Value::Bool(!boolval);
+impl Sub for Literal {
+    type Output = Literal;
+
+    fn sub(self, other: Literal) -> Literal {
+        assert!(self.is_number() && other.is_number() || self.is_string() && other.is_string());
+        if let Literal::Number(lhs) = self {
+            let rhs = other.get_number().unwrap();
+            return Literal::Number(lhs + rhs);
         }
-        panic!()
+        panic!("Cannot add {:?} and {:?} with `+` operator", self, other)
     }
 }
 
-impl Neg for &Value {
-    type Output = Value;
-    fn neg(self) -> Self::Output {
-        if let Value::Number(num) = self {
-            return Value::Number(num.neg());
-        }
-        panic!()
+impl Not for Literal {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Literal::Bool(!self.get_bool().unwrap())
+    }
+}
+
+impl Neg for Literal {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        if let Literal::Number(num) = self {
+            return Literal::Number(num.neg());
+        };
+        panic!("Cannot negate {:?}", self)
     }
 }
 
 impl Value {
-    //    value_impl ! (and, &&, Bool);
-    //    value_impl ! (or, ||, Bool);
-
-    pub fn is_string_lit(&self) -> bool {
-        matches!(self, Value::StringLiteral(_))
-    }
-
     pub fn same_variant(&self, other: &Value) -> bool {
-        std::mem::discriminant(self) == std::mem::discriminant(other)
+        discriminant(self) == discriminant(other)
     }
-
-    pub fn add_string(self, other: Value, symbol_table: &mut SymbolTable) -> Self {
-        if let Value::StringLiteral(lhs) = self {
-            if let Value::StringLiteral(rhs) = other {
-                let lhs = symbol_table.resolve(lhs).unwrap();
-                let rhs = symbol_table.resolve(rhs).unwrap();
-                let concat = symbol_table.get_or_intern(lhs.to_string() + rhs);
-                return Value::StringLiteral(concat);
-            }
+    pub fn get_literal(&self) -> Result<Literal> {
+        if let Value::Literal(lit) = self {
+            return Ok(*lit);
         }
-        panic!("Cannot {:?} add {:?}", self, other)
+        Err(anyhow!("Cannot get literal from: {:?}", self))
+    }
+    pub fn add_literals(&self, rhs: &Value) -> Result<Value> {
+        if let Value::Literal(lhs) = self {
+            let rhs = rhs.get_literal()?;
+            return Ok(Value::Literal(*lhs + rhs));
+        }
+        Err(anyhow!("Cannot add literals {:?} and {:?}", self, rhs))
+    }
+    pub fn concat_value_strings(
+        &self,
+        rhs: Value,
+        symbol_table: &mut SymbolTable,
+    ) -> Result<Value> {
+        let concat = rhs
+            .get_literal()?
+            .add_string(rhs.get_literal()?, symbol_table)?;
+        Ok(Value::Literal(concat))
     }
 }
