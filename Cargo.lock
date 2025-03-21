@@ -29,6 +29,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "codegen"
+version = "0.1.0"
+
+[[package]]
 name = "enum_dispatch"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

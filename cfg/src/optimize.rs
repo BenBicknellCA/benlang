@@ -1,8 +1,8 @@
+use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
-use crate::{CFG, CFGBuilder};
-use anyhow::{Error, Result, anyhow};
-use parser::expr::{Binary, BinaryOp, Unary, UnaryOp, Value};
+use anyhow::Result;
+use parser::expr::{BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
 
 impl CFGBuilder {
@@ -12,9 +12,7 @@ impl CFGBuilder {
             Expr::Binary(_) => CFGBuilder::fold_binary(expr_pool, expr_id),
             Expr::Unary(_) => CFGBuilder::fold_unary(expr_pool, expr_id),
             Expr::Value(_) => Ok(expr_id),
-            _ => {
-                return Err(());
-            }
+            _ => Err(()),
         }
     }
 
@@ -25,7 +23,7 @@ impl CFGBuilder {
         let folded_rhs = CFGBuilder::fold_constant(expr_pool, binary.rhs)?;
         if let Expr::Value(lhs) = &expr_pool[folded_lhs] {
             if let Expr::Value(rhs) = &expr_pool[folded_rhs] {
-                if !lhs.same_variant(&rhs) {
+                if !lhs.same_variant(rhs) {
                     return Err(());
                 }
                 if lhs.is_string_lit() && binary.op != BinaryOp::Plus {
@@ -53,12 +51,8 @@ impl CFGBuilder {
         let opnd = CFGBuilder::fold_constant(expr_pool, un.opnd)?;
         let folded_opnd = expr_pool[opnd].get_value()?;
         match un.op {
-            UnaryOp::Bang => {
-                return Ok(expr_pool.insert(Expr::Value(!folded_opnd)));
-            }
-            UnaryOp::Minus => {
-                return Ok(expr_pool.insert(Expr::Value(-folded_opnd)));
-            }
-        };
+            UnaryOp::Bang => Ok(expr_pool.insert(Expr::Value(!folded_opnd))),
+            UnaryOp::Minus => Ok(expr_pool.insert(Expr::Value(-folded_opnd))),
+        }
     }
 }

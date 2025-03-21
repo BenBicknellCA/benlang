@@ -17,7 +17,7 @@ impl CFGBuilder {
                     phi_vec
                 } else {
                     blocks_to_phi.insert(block, Vec::new());
-                    &mut blocks_to_phi.get_mut(&block).unwrap()
+                    blocks_to_phi.get_mut(&block).unwrap()
                 };
                 vec.push(*phi);
                 block
@@ -94,7 +94,7 @@ impl CFGBuilder {
             }
         }
 
-        let graph = self.cfg.filter_map(
+        self.cfg.filter_map(
             |node_index, weight| {
                 if node_map.contains(&node_index) {
                     Some(node_index)
@@ -104,12 +104,11 @@ impl CFGBuilder {
             },
             |edge_index, weight| {
                 if edges.contains(&edge_index) {
-                    { Some(edge_index) }
+                    Some(edge_index)
                 } else {
                     None
                 }
             },
-        );
-        graph
+        )
     }
 }
