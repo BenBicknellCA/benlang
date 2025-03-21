@@ -2,8 +2,8 @@ use crate::Expr;
 use crate::ExprPool;
 use crate::{CFG, CFGBuilder};
 use anyhow::{Error, Result, anyhow};
-use benlang_parser::expr::{Binary, BinaryOp, Unary, UnaryOp, Value};
-use benlang_parser::expr_parser::ExprId;
+use parser::expr::{Binary, BinaryOp, Unary, UnaryOp, Value};
+use parser::expr_parser::ExprId;
 
 impl CFGBuilder {
     pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<ExprId, ()> {

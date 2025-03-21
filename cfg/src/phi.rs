@@ -1,5 +1,5 @@
 use crate::ssa::{PhiId, PhiOrExpr, User};
-use benlang_parser::scanner::Symbol;
+use parser::scanner::Symbol;
 use petgraph::graph::NodeIndex;
 use slotmap::{SecondaryMap, SlotMap};
 use std::collections::{HashMap, HashSet};

@@ -1,10 +1,10 @@
 [package]
-name = "benlang-cfg"
+name = "cfg"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-benlang-parser = {path = "../benlang-parser"}
+parser = { path = "../parser" }
 petgraph = "0.7.1"
 slotmap = "1.0.7"
 anyhow = "1.0.97"

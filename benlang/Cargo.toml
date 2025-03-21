@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-benlang-parser = {path = "../benlang-parser"}
-benlang-cfg = {path = "../benlang-cfg"}
-benlang-mem = {path = "../benlang-mem"}
+parser = { path = "../parser" }
+cfg = { path = "../cfg" }
 petgraph = "0.7.1"

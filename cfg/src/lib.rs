@@ -9,10 +9,10 @@ use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
 use crate::ssa::SSABuilder;
 use anyhow::Result;
-use benlang_parser::expr_parser::ExprId;
-use benlang_parser::scanner::{Symbol, SymbolTable};
-use benlang_parser::stmt_parser::StmtId;
-use benlang_parser::{
+use parser::expr_parser::ExprId;
+use parser::scanner::{Symbol, SymbolTable};
+use parser::stmt_parser::StmtId;
+use parser::{
     ExprPool, StmtPool,
     expr::Expr,
     object::Function,
@@ -303,8 +303,8 @@ impl CFGBuilder {
 #[cfg(test)]
 mod cfg_tests {
     use super::*;
-    use benlang_parser::Parser;
-    use benlang_parser::scanner::Scanner;
+    use parser::Parser;
+    use parser::scanner::Scanner;
     use petgraph::dot::{Config, Dot};
     // test_var * 2
 
