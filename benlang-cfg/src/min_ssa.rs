@@ -1,9 +1,9 @@
+use crate::CFGBuilder;
 use crate::ssa::PhiId;
 use crate::ssa::PhiOrExpr;
-use crate::CFGBuilder;
+use petgraph::Graph;
 use petgraph::algo::tarjan_scc;
 use petgraph::graph::NodeIndex;
-use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
 
 impl CFGBuilder {
@@ -13,7 +13,7 @@ impl CFGBuilder {
             .iter()
             .map(|phi| {
                 let block = self.ssa.phis_to_block[*phi];
-                let vec:&mut Vec<PhiId> = if let Some(phi_vec) = blocks_to_phi.get_mut(&block) {
+                let vec: &mut Vec<PhiId> = if let Some(phi_vec) = blocks_to_phi.get_mut(&block) {
                     phi_vec
                 } else {
                     blocks_to_phi.insert(block, Vec::new());
@@ -31,17 +31,25 @@ impl CFGBuilder {
         }
     }
 
-    pub fn replace_scc_by_value(&mut self, scc: &[NodeIndex], blocks_to_phi: &HashMap<NodeIndex, Vec<PhiId>>, op: PhiOrExpr) {
+    pub fn replace_scc_by_value(
+        &mut self,
+        scc: &[NodeIndex],
+        blocks_to_phi: &HashMap<NodeIndex, Vec<PhiId>>,
+        op: PhiOrExpr,
+    ) {
         for component in scc {
             let phis_in_component = &blocks_to_phi[component];
             for phi in phis_in_component {
                 self.ssa.phi_operands[*phi] = vec![op];
             }
-
         }
     }
 
-    pub fn process_scc(&mut self, scc: &[NodeIndex], blocks_to_phi: &HashMap<NodeIndex, Vec<PhiId>>) {
+    pub fn process_scc(
+        &mut self,
+        scc: &[NodeIndex],
+        blocks_to_phi: &HashMap<NodeIndex, Vec<PhiId>>,
+    ) {
         if scc.len() == 1 {
             return;
         }
@@ -49,17 +57,18 @@ impl CFGBuilder {
         let mut outer_ops = Vec::new();
         for (node, phi_vec) in blocks_to_phi {
             for phi in phi_vec {
-            let mut is_inner = true;
-            for opnd in &self.ssa.phi_operands[*phi] {
-                if !scc.contains(node) {
-                    outer_ops.push(opnd);
-                    is_inner = false;
+                let mut is_inner = true;
+                for opnd in &self.ssa.phi_operands[*phi] {
+                    if !scc.contains(node) {
+                        outer_ops.push(opnd);
+                        is_inner = false;
+                    }
+                }
+                if is_inner {
+                    inner.insert(*phi);
                 }
             }
-            if is_inner {
-                inner.insert(*phi);
-            }
-        }}
+        }
         let outer_ops_len = outer_ops.len();
         if outer_ops_len == 1 {
             self.replace_scc_by_value(scc, blocks_to_phi, *outer_ops.pop().unwrap());
@@ -72,7 +81,10 @@ impl CFGBuilder {
     //}
 
     //impl CFGBuilder {
-    pub fn induced_subgraph(&self, node_map: &[NodeIndex]) -> Graph<NodeIndex, petgraph::graph::EdgeIndex> {
+    pub fn induced_subgraph(
+        &self,
+        node_map: &[NodeIndex],
+    ) -> Graph<NodeIndex, petgraph::graph::EdgeIndex> {
         let mut edges = HashSet::new();
 
         for node in node_map {
