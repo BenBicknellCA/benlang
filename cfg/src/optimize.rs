@@ -1,7 +1,7 @@
 use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Result, anyhow};
 use parser::expr::{BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::value::Value;
