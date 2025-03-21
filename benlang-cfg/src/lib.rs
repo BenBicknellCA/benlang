@@ -1,8 +1,9 @@
 mod basic_block;
 mod ir;
+mod min_ssa;
+mod optimize;
 mod phi;
 mod ssa;
-mod min_ssa;
 
 use crate::basic_block::BasicBlock;
 use crate::ir::Ir;
@@ -12,13 +13,13 @@ use benlang_parser::expr_parser::ExprId;
 use benlang_parser::scanner::{Symbol, SymbolTable};
 use benlang_parser::stmt_parser::StmtId;
 use benlang_parser::{
-    expr::Expr, object::Function,
+    ExprPool, StmtPool,
+    expr::Expr,
+    object::Function,
     stmt::{Block, Conditional, If, Stmt, While},
-    ExprPool,
-    StmtPool,
 };
 
-use petgraph::{graph::NodeIndex, Graph};
+use petgraph::{Graph, graph::NodeIndex};
 
 pub type CFG = Graph<BasicBlock, Option<bool>>;
 
@@ -77,8 +78,12 @@ impl CFGBuilder {
         node_index
     }
 
+    fn fold_expr(&mut self, expr_id: ExprId) {}
+
     fn add_ir_stmt_to_current_node(&mut self, ir_stmt: Ir) {
         if let Some(current_node) = self.cfg.node_weight_mut(self.current_node) {
+            // optimize expr
+
             current_node.append_body(ir_stmt);
         }
     }
@@ -197,11 +202,11 @@ impl CFGBuilder {
         let expr = &expr_pool[expr_id];
         match expr {
             Expr::Binary(bin) => {
-                CFGBuilder::get_all_vars_used_in_expr(expr_pool, bin.0, vec);
-                CFGBuilder::get_all_vars_used_in_expr(expr_pool, bin.2, vec);
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, bin.lhs, vec);
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, bin.rhs, vec);
             }
             Expr::Unary(unary) => {
-                let opnd = unary.1;
+                let opnd = unary.opnd;
                 CFGBuilder::get_all_vars_used_in_expr(expr_pool, opnd, vec);
             }
             Expr::Stmt(_) => {
@@ -211,7 +216,7 @@ impl CFGBuilder {
                 todo!()
             }
             Expr::Assign(assign) => {
-                CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.1, vec);
+                CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.val, vec);
             }
             Expr::Value(_) => {
                 // do nothing
@@ -248,9 +253,9 @@ impl CFGBuilder {
             Stmt::Expr(expr_id) => {
                 if let Expr::Assign(assign) = &self.expr_pool[*expr_id] {
                     self.ssa.write_variable(
-                        assign.0,
+                        assign.name,
                         self.current_node,
-                        ssa::PhiOrExpr::Expr(assign.1),
+                        ssa::PhiOrExpr::Expr(assign.val),
                     )?;
                 }
                 self.ssa.process_all_vars_in_expr(
@@ -298,8 +303,8 @@ impl CFGBuilder {
 #[cfg(test)]
 mod cfg_tests {
     use super::*;
-    use benlang_parser::scanner::Scanner;
     use benlang_parser::Parser;
+    use benlang_parser::scanner::Scanner;
     use petgraph::dot::{Config, Dot};
     // test_var * 2
 

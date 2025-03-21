@@ -32,7 +32,7 @@ impl Parser {
     fn unary(&mut self) -> Result<ExprId> {
         let op: UnaryOp = UnaryOp::try_from(self.iter.prev)?;
         let expr = self.parse_expression(Precedence::Unary)?;
-        self.insert_expr(Unary(op, expr).into())
+        self.insert_expr(Unary::new(op, expr).into())
     }
 
     fn string_lit(&mut self, string_key: Symbol) -> Result<ExprId> {
@@ -60,7 +60,7 @@ impl Parser {
     fn variable(&mut self, iden: Symbol) -> Result<ExprId> {
         if self.consume(Token::Equal).is_ok() {
             let expr = self.expression()?;
-            return self.insert_expr(crate::expr::Assign(iden, expr).into());
+            return self.insert_expr(crate::expr::Assign::new(iden, expr).into());
         }
         self.insert_expr(Variable(iden).into())
     }
@@ -101,6 +101,6 @@ impl Parser {
         let bin_op = BinaryOp::try_from(op)?;
         Ok(self
             .expr_pool
-            .insert(crate::expr::Binary(pre_lhs, bin_op, rhs).into()))
+            .insert(crate::expr::Binary::new(pre_lhs, bin_op, rhs).into()))
     }
 }

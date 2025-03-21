@@ -4,6 +4,7 @@ pub mod object;
 pub mod scanner;
 pub mod stmt;
 pub mod stmt_parser;
+pub mod value;
 
 use crate::expr::*;
 use crate::expr_parser::*;
@@ -273,9 +274,9 @@ impl Parser {
 
     pub fn get_bin(&self, expr_key: ExprId) -> Result<(&Expr, BinaryOp, &Expr)> {
         if let Some(Expr::Binary(bin)) = self.expr_pool.get(expr_key) {
-            let lhs = bin.0;
-            let rhs = bin.2;
-            let op = bin.1;
+            let lhs = bin.lhs;
+            let rhs = bin.rhs;
+            let op = bin.op;
             return Ok((
                 self.expr_pool.get(lhs).unwrap(),
                 op,

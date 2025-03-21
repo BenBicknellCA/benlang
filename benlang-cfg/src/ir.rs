@@ -20,7 +20,7 @@ impl Ir {
             Stmt::Var(name, val) => Some((*name, *val)),
             Stmt::Expr(expr) => {
                 if let Expr::Assign(assgn) = &expr_pool[*expr] {
-                    return Some((assgn.0, assgn.1));
+                    return Some((assgn.name, assgn.val));
                 };
                 None
             }

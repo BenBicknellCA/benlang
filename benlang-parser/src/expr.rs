@@ -94,25 +94,80 @@ pub enum Expr {
     Grouping,
 }
 
+impl Expr {
+    pub fn get_value(&self) -> Result<&Value, ()> {
+        if let Expr::Value(val) = self {
+            return Ok(val);
+        }
+        Err(())
+    }
+
+    pub fn get_binary(&self) -> Result<Binary, ()> {
+        if let Expr::Binary(binary) = self {
+            return Ok(*binary);
+        }
+        Err(())
+    }
+    pub fn get_unary(&self) -> Result<Unary, ()> {
+        if let Expr::Unary(unary) = self {
+            return Ok(*unary);
+        }
+        Err(())
+    }
+
+    pub fn can_concat(&self, other: &Expr) -> bool {
+        if let Expr::Value(Value::StringLiteral(_)) = self {
+            return std::mem::discriminant(self) == std::mem::discriminant(other);
+        };
+        false
+    }
+}
+
 #[enum_dispatch]
 trait ToExpr {}
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
-pub struct Binary(pub ExprId, pub BinaryOp, pub ExprId);
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+pub struct Binary {
+    pub lhs: ExprId,
+    pub op: BinaryOp,
+    pub rhs: ExprId,
+}
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
-pub struct Unary(pub UnaryOp, pub ExprId);
+impl Binary {
+    pub fn new(lhs: ExprId, op: BinaryOp, rhs: ExprId) -> Self {
+        Self { lhs, op, rhs }
+    }
+}
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
-pub struct Assign(pub Symbol, pub ExprId);
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+pub struct Unary {
+    pub op: UnaryOp,
+    pub opnd: ExprId,
+}
+impl Unary {
+    pub fn new(op: UnaryOp, opnd: ExprId) -> Self {
+        Self { op, opnd }
+    }
+}
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+pub struct Assign {
+    pub name: Symbol,
+    pub val: ExprId,
+}
+impl Assign {
+    pub fn new(name: Symbol, val: ExprId) -> Self {
+        Self { name, val }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
 pub struct Identifier(pub Symbol);
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
 pub struct Variable(pub Symbol);
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
 pub struct Grouping(pub Symbol);
 
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
