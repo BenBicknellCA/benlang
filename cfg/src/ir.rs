@@ -1,4 +1,4 @@
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Result, anyhow};
 use parser::ExprPool;
 use parser::expr::Expr;
 use parser::expr::Value;

@@ -8,7 +8,7 @@ mod ssa;
 use crate::basic_block::BasicBlock;
 use crate::ir::HIR;
 use crate::ssa::SSABuilder;
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Result, anyhow};
 use parser::expr_parser::ExprId;
 use parser::scanner::{Symbol, SymbolTable};
 use parser::stmt_parser::StmtId;
@@ -94,7 +94,10 @@ impl CFGBuilder {
     ) -> Result<()> {
         CFGBuilder::optimize_hir(expr_pool, &hir_stmt)?;
         if let Some(current_node) = cfg.node_weight_mut(node) {
-            return Ok(current_node.append_body(hir_stmt));
+            return {
+                current_node.append_body(hir_stmt);
+                Ok(())
+            };
         }
         Err(anyhow!("could not add ir stmt to node {node:?}"))
     }

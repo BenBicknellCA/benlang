@@ -1,7 +1,7 @@
 use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Result, anyhow};
 use parser::expr::Value;
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
@@ -15,7 +15,7 @@ impl CFGBuilder {
             Expr::Variable(_) => Ok(()),
             Expr::Assign(assign) => {
                 CFGBuilder::fold_constant(expr_pool, assign.val)?;
-                let new_assign = Expr::Assign(Assign::new(assign.name, assign.val).into());
+                let new_assign = Expr::Assign(Assign::new(assign.name, assign.val));
                 expr_pool[expr_id] = new_assign;
                 Ok(())
             }
