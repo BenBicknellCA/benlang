@@ -5,6 +5,7 @@ use anyhow::{Result, anyhow};
 use parser::value::{Literal, Value};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
+use parser::value::Value;
 
 impl CFGBuilder {
     pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
@@ -20,6 +21,7 @@ impl CFGBuilder {
                 Ok(())
             }
             _ => Ok(()),
+
         }
     }
     pub fn is_lhs_or_rhs_variable(expr_pool: &ExprPool, lhs: ExprId, rhs: ExprId) -> bool {
@@ -66,6 +68,7 @@ impl CFGBuilder {
             BinaryOp::Minus => lhs - rhs,
             BinaryOp::Slash => lhs / rhs,
             BinaryOp::Star => lhs * rhs,
+
             BinaryOp::And | BinaryOp::Or if lhs.get_bool()? && rhs.get_bool()? => {
                 Literal::Bool(lhs.fold_and_or(binary.op, &rhs)?)
             }
@@ -83,6 +86,7 @@ impl CFGBuilder {
 
         if folded_expr.is_variable() {
             return Ok(());
+
         }
 
         let folded_opnd = folded_expr.get_value()?.get_literal()?;

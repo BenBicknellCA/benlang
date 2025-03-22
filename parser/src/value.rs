@@ -1,6 +1,8 @@
 use crate::ExprPool;
 use crate::expr;
+
 use crate::expr::BinaryOp;
+
 use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
 use anyhow::{Error, Result, anyhow};
@@ -156,15 +158,18 @@ impl Neg for Literal {
 }
 
 impl Value {
+
     pub fn is_bool(&self) -> bool {
         matches!(self, Value::Literal(Literal::Bool(_)))
     }
+
     pub fn same_variant(&self, other: &Value) -> bool {
         discriminant(self) == discriminant(other)
     }
     pub fn get_literal(&self) -> Result<Literal> {
         if let Value::Literal(lit) = self {
             return Ok(*lit);
+
         }
         Err(anyhow!("Cannot get literal from: {:?}", self))
     }
@@ -179,6 +184,18 @@ impl Value {
     pub const fn is_string_lit(&self) -> bool {
         matches!(self, Value::Literal(Literal::String(_)))
     }
+
+        }
+        Err(anyhow!("Cannot get literal from: {:?}", self))
+    }
+    pub fn add_literals(&self, rhs: &Value) -> Result<Value> {
+        if let Value::Literal(lhs) = self {
+            let rhs = rhs.get_literal()?;
+            return Ok(Value::Literal(*lhs + rhs));
+        }
+        Err(anyhow!("Cannot add literals {:?} and {:?}", self, rhs))
+    }
+
     pub fn concat_value_strings(
         &self,
         rhs: Value,

@@ -152,7 +152,7 @@ impl From<Token> for usize {
             Token::Identifier(_) => 21,
             Token::StringLiteral(_) => 22,
             Token::Number(_) => 23,
-            Token::Double(_) => 24,
+            //            Token::Double(_) => 24,
             Token::And => 25,
             Token::Class => 26,
             Token::Else => 27,

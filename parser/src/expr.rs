@@ -2,9 +2,10 @@ use crate::Object;
 use crate::ParseError;
 use crate::Stmt;
 use crate::expr_parser::ExprId;
-use crate::scanner::{Symbol, Token};
-use crate::value::Literal;
-use crate::value::Value;
+
+use crate::scanner::{Symbol, SymbolTable, Token};
+use crate::value::{Literal, Value};
+
 use anyhow::{Error, Result, anyhow};
 use enum_dispatch::enum_dispatch;
 
@@ -35,7 +36,7 @@ pub enum BinaryOp {
 
 impl TryFrom<Token> for UnaryOp {
     type Error = Error;
-    fn try_from(token: Token) -> Result<UnaryOp, Error> {
+    fn try_from(token: Token) -> Result<UnaryOp> {
         let op = match token {
             Token::Minus => UnaryOp::Minus,
             Token::Bang => UnaryOp::Bang,
@@ -47,7 +48,7 @@ impl TryFrom<Token> for UnaryOp {
 
 impl TryFrom<Token> for BinaryOp {
     type Error = Error;
-    fn try_from(token: Token) -> Result<BinaryOp, Error> {
+    fn try_from(token: Token) -> Result<BinaryOp> {
         let op = match token {
             Token::Plus => BinaryOp::Plus,
             Token::Minus => BinaryOp::Minus,
@@ -101,6 +102,7 @@ pub enum Expr {
 }
 
 impl Expr {
+
     pub const fn is_variable(&self) -> bool {
         matches!(self, Expr::Variable(_))
     }
@@ -127,7 +129,7 @@ impl Expr {
             _ => false,
         }
     }
-    pub fn get_value(&self) -> Result<&Value> {
+   pub fn get_value(&self) -> Result<&Value> {
         if let Expr::Value(val) = self {
             return Ok(val);
         }
@@ -151,7 +153,16 @@ impl Expr {
         if let Expr::Value(Value::Literal(Literal::String(_))) = self {
             return std::mem::discriminant(self) == std::mem::discriminant(other);
         };
+
+    pub fn is_string_val(&self) -> bool {
+        if let Expr::Value(Value::Literal(Literal::String(_))) = self {
+            return true;
+        }
         false
+    }
+
+    pub fn can_concat(&self, other: &Expr) -> bool {
+        self.is_string_val() && other.is_string_val()
     }
 }
 
