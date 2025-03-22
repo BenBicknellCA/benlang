@@ -32,7 +32,7 @@ pub enum Token {
     StringLiteral(Symbol),
     Number(f64),
     //todo
-    Double(f32),
+//    Double(f32),
     And,
     Class,
     Else,

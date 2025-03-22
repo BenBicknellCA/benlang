@@ -185,16 +185,6 @@ impl Value {
         matches!(self, Value::Literal(Literal::String(_)))
     }
 
-        }
-        Err(anyhow!("Cannot get literal from: {:?}", self))
-    }
-    pub fn add_literals(&self, rhs: &Value) -> Result<Value> {
-        if let Value::Literal(lhs) = self {
-            let rhs = rhs.get_literal()?;
-            return Ok(Value::Literal(*lhs + rhs));
-        }
-        Err(anyhow!("Cannot add literals {:?} and {:?}", self, rhs))
-    }
 
     pub fn concat_value_strings(
         &self,

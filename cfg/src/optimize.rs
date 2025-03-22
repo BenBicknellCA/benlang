@@ -5,7 +5,6 @@ use anyhow::{Result, anyhow};
 use parser::value::{Literal, Value};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
-use parser::value::Value;
 
 impl CFGBuilder {
     pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {

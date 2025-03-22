@@ -1,7 +1,6 @@
 use crate::Parser;
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::value::{Literal, Value};
 
 use crate::object::Function;
 use crate::scanner::Symbol;

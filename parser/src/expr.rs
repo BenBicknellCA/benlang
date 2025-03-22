@@ -149,10 +149,6 @@ impl Expr {
         Err(anyhow!("cannot get unary from {:?}", self))
     }
 
-    pub fn can_concat(&self, other: &Expr) -> bool {
-        if let Expr::Value(Value::Literal(Literal::String(_))) = self {
-            return std::mem::discriminant(self) == std::mem::discriminant(other);
-        };
 
     pub fn is_string_val(&self) -> bool {
         if let Expr::Value(Value::Literal(Literal::String(_))) = self {
