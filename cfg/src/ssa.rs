@@ -144,12 +144,6 @@ impl SSABuilder {
     ) -> Result<PhiOrExpr> {
         if let Some(map) = self.var_defs.get(block) {
             if let Some(phi_or_expr) = map.get(&variable) {
-                println!(
-                    "reading: {:?} in {:?} // value = {:?}",
-                    self.symbol_table.resolve(variable).unwrap(),
-                    block,
-                    phi_or_expr
-                );
                 return Ok(*phi_or_expr);
             }
         }

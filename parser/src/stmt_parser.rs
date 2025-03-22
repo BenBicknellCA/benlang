@@ -54,12 +54,14 @@ impl Parser {
         self.insert_stmt(Stmt::Expr(expr_key))
     }
     fn function(&mut self) -> Result<StmtId> {
+        let parent = self.func_data.current;
         self.consume(Token::Func)?;
         let name: Symbol = self.parse_var()?;
         self.consume(Token::LeftParen)?;
         let mut arity: u8 = 0;
+        let child = self.func_data.enter_func(parent);
 
-        let args: Option<Vec<Symbol>> = if self.check(Token::RightParen).is_err() {
+        let params: Option<Vec<Symbol>> = if self.check(Token::RightParen).is_err() {
             let first_param = self.parse_var()?;
             let mut params = vec![first_param];
             arity += 1;
@@ -78,9 +80,11 @@ impl Parser {
 
         let body = self.block()?;
 
-        let fun: StmtId = self
-            .stmt_pool
-            .insert(Stmt::Function(Function::new(name, body, arity, args)));
+        // exit function
+        self.func_data.func_pool[child] = Function::new(Some(name), body, arity, params, child);
+        self.func_data.current = parent;
+
+        let fun: StmtId = self.stmt_pool.insert(Stmt::Function(child));
 
         //        let fun_obj = self.resolver.insert_obj(Object::Function(fun_obj));
         Ok(fun)

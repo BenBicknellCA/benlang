@@ -1,4 +1,5 @@
 use crate::expr_parser::ExprId;
+use crate::object::FuncId;
 use crate::object::Function;
 use crate::scanner::Symbol;
 use crate::stmt_parser::StmtId;
@@ -12,7 +13,7 @@ pub enum Stmt {
     Return1(ExprId),
     Var(Symbol, ExprId),
     Print(ExprId),
-    Function(Function),
+    Function(FuncId),
     Block(Block),
 }
 

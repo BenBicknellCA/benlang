@@ -8,13 +8,14 @@ pub mod value;
 
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::object::Object;
+use crate::object::Function;
+use crate::object::{FuncId, Object};
 use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;
 use crate::stmt_parser::*;
 use anyhow::{Error, Result, anyhow, ensure};
-use slotmap::SlotMap;
+use slotmap::{SecondaryMap, SlotMap};
 use thiserror::Error;
 
 pub type AST = Vec<StmtId>;
@@ -150,12 +151,15 @@ pub struct ParserIter {
 pub type StmtPool = SlotMap<StmtId, Stmt>;
 pub type ExprPool = SlotMap<ExprId, Expr>;
 
+pub type FuncPool = SlotMap<FuncId, Function>;
+
 #[derive(Debug)]
 pub struct Parser {
     iter: ParserIter,
     pub ast: AST,
     pub stmt_pool: StmtPool,
     pub expr_pool: ExprPool,
+    pub func_data: FuncData,
     pub interner: SymbolTable,
 }
 
@@ -217,15 +221,55 @@ impl ParserIter {
         Ok(())
     }
 }
+#[derive(Debug)]
+pub struct FuncData {
+    pub func_pool: FuncPool,
+    pub child_to_parent: SecondaryMap<FuncId, FuncId>,
+    pub parent_to_children: SecondaryMap<FuncId, Vec<FuncId>>,
+    pub main: FuncId,
+    pub current: FuncId,
+}
+
+impl FuncData {
+    pub fn new_main() -> Self {
+        let mut func_pool = SlotMap::with_key();
+        let main = func_pool.insert(Function::default());
+        let current = main;
+        let mut parent_to_children = SecondaryMap::new();
+        parent_to_children.insert(main, Vec::new());
+        Self {
+            func_pool,
+            main,
+            current,
+            child_to_parent: SecondaryMap::new(),
+            parent_to_children,
+        }
+    }
+    pub fn enter_func(&mut self, parent: FuncId) -> FuncId {
+        let placeholder_child = self.func_pool.insert(Function::default());
+        self.child_to_parent.insert(placeholder_child, parent);
+        if let Some(children) = self.parent_to_children.get_mut(parent) {
+            children.push(placeholder_child);
+        } else {
+            self.parent_to_children
+                .insert(parent, vec![placeholder_child]);
+        }
+        self.current = placeholder_child;
+        placeholder_child
+    }
+}
 
 impl Parser {
     pub fn new(tokens: Vec<Token>, interner: SymbolTable) -> Self {
         let ast: AST = Vec::new();
+        let func_data = FuncData::new_main();
         let mut parser = Self {
             iter: ParserIter::new(tokens),
             ast,
             stmt_pool: SlotMap::with_key(),
             expr_pool: SlotMap::with_key(),
+            func_data,
+
             interner,
         };
         // 'prime' parser
