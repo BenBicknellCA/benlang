@@ -10,7 +10,6 @@ use crate::ir::HIR;
 use crate::ssa::SSABuilder;
 use anyhow::{Result, anyhow};
 use parser::expr_parser::ExprId;
-use parser::object::FuncId;
 use parser::scanner::{Symbol, SymbolTable};
 use parser::stmt_parser::StmtId;
 use parser::{
