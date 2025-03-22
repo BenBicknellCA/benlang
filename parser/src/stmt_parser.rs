@@ -6,6 +6,7 @@ use crate::object::Function;
 use crate::scanner::Symbol;
 use crate::scanner::Token;
 use crate::stmt::*;
+use crate::value::{Literal, Value};
 use anyhow::Result;
 use slotmap::new_key_type;
 
@@ -92,7 +93,7 @@ impl Parser {
         let var_val: ExprId = if self.consume(Token::Equal).is_ok() {
             self.expression()?
         } else {
-            self.expr_pool.insert(Value::Nil.into())
+            self.expr_pool.insert(Value::Literal(Literal::Nil).into())
         };
 
         self.consume(Token::Semicolon)?;

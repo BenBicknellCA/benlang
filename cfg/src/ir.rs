@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use parser::ExprPool;
 use parser::expr::Expr;
-use parser::expr::Value;
+use parser::value::Value;
 use parser::expr_parser::ExprId;
 use parser::object::Function;
 use parser::scanner::Symbol;

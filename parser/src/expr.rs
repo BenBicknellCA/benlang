@@ -3,6 +3,8 @@ use crate::ParseError;
 use crate::Stmt;
 use crate::expr_parser::ExprId;
 use crate::scanner::{Symbol, Token};
+use crate::value::Literal;
+use crate::value::Value;
 use anyhow::{Error, Result, anyhow};
 use enum_dispatch::enum_dispatch;
 
@@ -104,14 +106,14 @@ impl Expr {
     }
 
     pub fn get_bool(&self) -> Result<bool> {
-        if let Expr::Value(Value::Bool(boolval)) = self {
+        if let Expr::Value(Value::Literal(Literal::Bool(boolval))) = self {
             return Ok(*boolval);
         }
         Err(anyhow!("cannot get bool from {:?}:", self))
     }
 
     pub const fn is_bool(&self) -> bool {
-        matches!(self, Expr::Value(Value::Bool(_)))
+        matches!(self, Expr::Value(Value::Literal(Literal::Bool(_))))
     }
     pub fn can_fold(&self, expr_pool: &crate::ExprPool) -> bool {
         match self {
@@ -146,7 +148,7 @@ impl Expr {
     }
 
     pub fn can_concat(&self, other: &Expr) -> bool {
-        if let Expr::Value(Value::StringLiteral(_)) = self {
+        if let Expr::Value(Value::Literal(Literal::String(_))) = self {
             return std::mem::discriminant(self) == std::mem::discriminant(other);
         };
         false
@@ -205,13 +207,4 @@ pub struct Call {
     callee: ExprId,
     paren: Token,
     args: Vec<ExprId>,
-}
-
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
-pub enum Value {
-    Object(Object),
-    Number(f32),
-    StringLiteral(Symbol),
-    Bool(bool),
-    Nil,
 }

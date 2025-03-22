@@ -2,7 +2,7 @@ use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
 use anyhow::{Result, anyhow};
-use parser::expr::Value;
+use parser::value::{Literal, Value};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
 
@@ -58,21 +58,21 @@ impl CFGBuilder {
             return Ok(());
         }
 
-        let lhs = lhs_expr.get_value()?;
-        let rhs = rhs_expr.get_value()?;
+        let lhs = lhs_expr.get_value()?.get_literal()?;
+        let rhs = rhs_expr.get_value()?.get_literal()?;
 
         let folded = match binary.op {
             BinaryOp::Plus => lhs + rhs,
             BinaryOp::Minus => lhs - rhs,
             BinaryOp::Slash => lhs / rhs,
             BinaryOp::Star => lhs * rhs,
-            BinaryOp::And | BinaryOp::Or if lhs.is_bool() && rhs.is_bool() => {
-                Value::Bool(lhs.fold_and_or(binary.op, rhs)?)
+            BinaryOp::And | BinaryOp::Or if lhs.get_bool()? && rhs.get_bool()? => {
+                Literal::Bool(lhs.fold_and_or(binary.op, &rhs)?)
             }
 
             _ => return Err(anyhow!("cannot fold {lhs:?} and {rhs:?}")),
         };
-        expr_pool[binary_id] = Expr::Value(folded);
+        expr_pool[binary_id] = Expr::Value(Value::Literal(folded));
         Ok(())
     }
 
@@ -80,15 +80,24 @@ impl CFGBuilder {
         let unary = expr_pool.get(un).unwrap().get_unary()?;
         CFGBuilder::fold_constant(expr_pool, unary.opnd)?;
         let folded_expr = &expr_pool[un];
+
         if folded_expr.is_variable() {
             return Ok(());
         }
-        let folded_opnd = folded_expr.get_value()?;
-        match unary.op {
-            UnaryOp::Bang => expr_pool[un] = Expr::Value(!folded_opnd),
 
-            UnaryOp::Minus => expr_pool[un] = Expr::Value(-folded_opnd),
-        }
+        let folded_opnd = folded_expr.get_value()?.get_literal()?;
+        let val: Literal = match unary.op {
+            UnaryOp::Bang => {
+                assert!(folded_opnd.is_bool());
+                !folded_opnd
+            },
+
+            UnaryOp::Minus => {
+                assert!(folded_opnd.is_number());
+                -folded_opnd
+            }
+        };
+        expr_pool[un] = Expr::Value(Value::Literal(val));
         Ok(())
     }
 }
