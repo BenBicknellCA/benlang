@@ -18,6 +18,9 @@ pub enum Stmt {
 }
 
 impl Stmt {
+    pub fn is_func(&self) -> bool {
+        matches!(self, Stmt::Function(_))
+    }
     pub fn is_conditional(&self) -> bool {
         matches!(self, Stmt::If(_) | Stmt::While(_))
     }

@@ -350,14 +350,15 @@ impl CFGBuilder {
 
     fn stmt(&mut self, stmt_id: StmtId) -> Result<bool> {
         self.process_all_vars_in_stmt(stmt_id)?;
-        if let Stmt::Function(id) = &self.stmt_pool[stmt_id] {
-            let func = &self.func_data.func_pool[*id];
+        let stmt = &self.stmt_pool[stmt_id];
+        if stmt.is_func() {
             return Ok(false);
         }
-        if self.stmt_pool[stmt_id].is_term() {
+        if stmt.is_term() {
             self.term_stmt(stmt_id)?;
             return Ok(true);
         }
+
         if let Ok(ir_stmt) = HIR::try_from(&self.stmt_pool[stmt_id]) {
             CFGBuilder::add_ir_stmt_to_node(
                 &mut self.cfg,
