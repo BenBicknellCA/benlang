@@ -13,7 +13,7 @@ use parser::expr_parser::ExprId;
 use parser::scanner::{Symbol, SymbolTable};
 use parser::stmt_parser::StmtId;
 use parser::{
-    ExprPool, StmtPool,
+    ExprPool, FuncData, StmtPool,
     expr::Expr,
     object::Function,
     stmt::{Block, Conditional, If, Stmt, While},
@@ -29,7 +29,7 @@ pub struct CFGBuilder {
     pub ssa: SSABuilder,
     pub stmt_pool: StmtPool,
     expr_pool: ExprPool,
-    pub func_stmt_id: StmtId,
+    func_data: FuncData,
 }
 
 impl CFGBuilder {
@@ -37,7 +37,7 @@ impl CFGBuilder {
         symbol_table: SymbolTable,
         stmt_pool: StmtPool,
         expr_pool: ExprPool,
-        func_stmt_id: StmtId,
+        func_data: FuncData,
     ) -> Self {
         let mut cfg: Graph<BasicBlock, Option<bool>> = Graph::new();
         let current_node = cfg.add_node(BasicBlock::default());
@@ -50,7 +50,7 @@ impl CFGBuilder {
             stmt_pool,
             expr_pool,
             current_node,
-            func_stmt_id,
+            func_data,
         }
     }
 
@@ -301,9 +301,8 @@ impl CFGBuilder {
     fn stmts(&mut self, stmts: &[StmtId]) -> Result<()> {
         let mut seal_prev = false;
         for stmt in stmts {
-            println!("stmt: {stmt:?}");
             if seal_prev {
-                self.ssa.seal_block(self.current_node, &self.cfg).unwrap();
+                self.ssa.seal_block(self.current_node, &self.cfg)?;
             }
 
             seal_prev = self.stmt(*stmt)?;
@@ -350,10 +349,15 @@ impl CFGBuilder {
 
     fn stmt(&mut self, stmt_id: StmtId) -> Result<bool> {
         self.process_all_vars_in_stmt(stmt_id)?;
-        if self.stmt_pool[stmt_id].is_term() {
+        let stmt = &self.stmt_pool[stmt_id];
+        if stmt.is_func() {
+            return Ok(false);
+        }
+        if stmt.is_term() {
             self.term_stmt(stmt_id)?;
             return Ok(true);
         }
+
         if let Ok(ir_stmt) = HIR::try_from(&self.stmt_pool[stmt_id]) {
             CFGBuilder::add_ir_stmt_to_node(
                 &mut self.cfg,
@@ -403,52 +407,40 @@ mod cfg_tests {
         let mut parser = prep_parser_cfg();
         parser.build_ast().unwrap();
         let ast = parser.ast;
-        let func_id: StmtId = ast[0];
-        let func = &parser.stmt_pool[func_id].clone();
-        let mut cfg_builder =
-            CFGBuilder::new(parser.interner, parser.stmt_pool, parser.expr_pool, func_id);
+        let func_data = parser.func_data;
+        let mut cfg_builder = CFGBuilder::new(
+            parser.interner,
+            parser.stmt_pool,
+            parser.expr_pool,
+            func_data,
+        );
         cfg_builder
     }
 
     #[test]
-    fn test_build_cfg() {
+    fn test_build_cfgs() {
         let mut cfg_builder = build_cfg();
-        let func = &cfg_builder.stmt_pool[cfg_builder.func_stmt_id].clone();
-        if let Stmt::Function(func) = func {
-            cfg_builder.build_func_cfg(func).unwrap();
-            println!(
-                "{:?}",
-                Dot::with_config(&cfg_builder.cfg, &[Config::EdgeIndexLabel])
-            );
-        };
-        let phis: std::collections::HashSet<ssa::PhiId> = cfg_builder.ssa.phis.0.keys().collect();
-        cfg_builder.remove_redundant_phis(&phis);
-        for (block, map) in &cfg_builder.ssa.var_defs.0 {
-            for (name, val) in map {
-                print!(
-                    "block: {block:?}: name: {:?} // {val:?} ",
-                    cfg_builder.ssa.symbol_table.resolve(*name).unwrap(),
-                );
-                match val {
-                    crate::ssa::PhiOrExpr::Phi(id) => {
-                        println!("{id:?}")
-                    }
-                    crate::ssa::PhiOrExpr::Expr(id) => {
-                        println!("{:?}", &cfg_builder.expr_pool[*id])
-                    }
-                }
-            }
-        }
-        println!();
-        println!();
-        println!();
-        for (id, val) in &cfg_builder.expr_pool {
-            println!("id: {id:?}, val: {val:?}");
-        }
+        let funcs = cfg_builder
+            .func_data
+            .parent_to_children
+            .remove(cfg_builder.func_data.main)
+            .unwrap();
+        for func in funcs {
+            let child = cfg_builder.func_data.func_pool.remove(func).unwrap();
 
-        assert_eq!(
-            cfg_builder.cfg.node_count(),
-            cfg_builder.ssa.sealed_blocks.len()
-        );
+            cfg_builder.build_func_cfg(&child).unwrap();
+            //        println!(
+            //            "{:?}",
+            //            Dot::with_config(&cfg_builder.cfg, &[Config::EdgeIndexLabel])
+            //        );
+            let phis: std::collections::HashSet<ssa::PhiId> =
+                cfg_builder.ssa.phis.0.keys().collect();
+            cfg_builder.remove_redundant_phis(&phis);
+
+            assert_eq!(
+                cfg_builder.cfg.node_count(),
+                cfg_builder.ssa.sealed_blocks.len()
+            );
+        }
     }
 }

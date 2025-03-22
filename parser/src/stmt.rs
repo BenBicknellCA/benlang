@@ -1,4 +1,5 @@
 use crate::expr_parser::ExprId;
+use crate::object::FuncId;
 use crate::object::Function;
 use crate::scanner::Symbol;
 use crate::stmt_parser::StmtId;
@@ -12,11 +13,14 @@ pub enum Stmt {
     Return1(ExprId),
     Var(Symbol, ExprId),
     Print(ExprId),
-    Function(Function),
+    Function(FuncId),
     Block(Block),
 }
 
 impl Stmt {
+    pub fn is_func(&self) -> bool {
+        matches!(self, Stmt::Function(_))
+    }
     pub fn is_conditional(&self) -> bool {
         matches!(self, Stmt::If(_) | Stmt::While(_))
     }
