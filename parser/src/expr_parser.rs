@@ -80,6 +80,8 @@ impl Parser {
     fn infix(&mut self, token: Token, left: ExprId) -> Result<ExprId> {
         match token {
             Token::Plus
+            | Token::And
+            | Token::Or
             | Token::Minus
             | Token::Slash
             | Token::Star

@@ -1,3 +1,4 @@
+use crate::BinaryOp;
 use crate::ExprPool;
 use crate::Value;
 use crate::expr;
@@ -104,8 +105,29 @@ impl Value {
     //    value_impl ! (and, &&, Bool);
     //    value_impl ! (or, ||, Bool);
 
-    pub fn is_string_lit(&self) -> bool {
+    pub const fn is_string_lit(&self) -> bool {
         matches!(self, Value::StringLiteral(_))
+    }
+
+    pub fn fold_and_or(&self, op: BinaryOp, rhs: &Value) -> Result<bool> {
+        let lhs = self.get_bool()?;
+        let rhs = rhs.get_bool()?;
+        match op {
+            BinaryOp::And => Ok(lhs && rhs),
+            BinaryOp::Or => Ok(lhs || rhs),
+            _ => Err(anyhow!("cannot fold {lhs:?} and {rhs:?}")),
+        }
+    }
+
+    pub const fn is_bool(&self) -> bool {
+        matches!(self, Value::Bool(_))
+    }
+
+    pub fn get_bool(&self) -> Result<bool> {
+        if let Value::Bool(boolval) = self {
+            return Ok(*boolval);
+        }
+        Err(anyhow!("cannot get bool from {:?}", self))
     }
 
     pub fn same_variant(&self, other: &Value) -> bool {

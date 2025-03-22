@@ -27,6 +27,8 @@ pub enum BinaryOp {
     GreaterEqual,
     LessThan,
     LessEqual,
+    Or,
+    And,
 }
 
 impl TryFrom<Token> for UnaryOp {
@@ -55,6 +57,8 @@ impl TryFrom<Token> for BinaryOp {
             Token::LessEqual => BinaryOp::LessEqual,
             Token::Greater => BinaryOp::GreaterThan,
             Token::Less => BinaryOp::LessThan,
+            Token::And => BinaryOp::And,
+            Token::Or => BinaryOp::Or,
 
             _ => return Err(ParseError::InvalidOp { op: token }.into()),
         };
@@ -95,24 +99,50 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn get_value(&self) -> Result<&Value, ()> {
+    pub const fn is_variable(&self) -> bool {
+        matches!(self, Expr::Variable(_))
+    }
+
+    pub fn get_bool(&self) -> Result<bool> {
+        if let Expr::Value(Value::Bool(boolval)) = self {
+            return Ok(*boolval);
+        }
+        Err(anyhow!("cannot get bool from {:?}:", self))
+    }
+
+    pub const fn is_bool(&self) -> bool {
+        matches!(self, Expr::Value(Value::Bool(_)))
+    }
+    pub fn can_fold(&self, expr_pool: &crate::ExprPool) -> bool {
+        match self {
+            Expr::Unary(un) => expr_pool[un.opnd].can_fold(expr_pool),
+            Expr::Binary(bin) => {
+                expr_pool[bin.lhs].can_fold(expr_pool) && expr_pool[bin.lhs].can_fold(expr_pool)
+            }
+            Expr::Value(_) => false,
+            Expr::Variable(_) => false,
+            Expr::Assign(assign) => expr_pool[assign.val].can_fold(expr_pool),
+            _ => false,
+        }
+    }
+    pub fn get_value(&self) -> Result<&Value> {
         if let Expr::Value(val) = self {
             return Ok(val);
         }
-        Err(())
+        Err(anyhow!("cannot get value from {:?}", self))
     }
 
-    pub fn get_binary(&self) -> Result<Binary, ()> {
+    pub fn get_binary(&self) -> Result<Binary> {
         if let Expr::Binary(binary) = self {
             return Ok(*binary);
         }
-        Err(())
+        Err(anyhow!("cannot get binary from {:?}", self))
     }
-    pub fn get_unary(&self) -> Result<Unary, ()> {
+    pub fn get_unary(&self) -> Result<Unary> {
         if let Expr::Unary(unary) = self {
             return Ok(*unary);
         }
-        Err(())
+        Err(anyhow!("cannot get unary from {:?}", self))
     }
 
     pub fn can_concat(&self, other: &Expr) -> bool {

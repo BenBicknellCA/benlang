@@ -95,6 +95,11 @@ impl From<Token> for Precedence {
             Token::EqualEqual => Precedence::Equality,
             Token::Return => Precedence::None,
             Token::And => Precedence::And,
+
+            //not sure about bitwise prec
+            Token::BitAnd => Precedence::And,
+            Token::BitOr => Precedence::Or,
+
             Token::LeftParen => Precedence::Call,
             Token::Dot => Precedence::Call,
             Token::Or => Precedence::Or,

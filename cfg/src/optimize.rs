@@ -1,58 +1,94 @@
 use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
-use anyhow::Result;
-use parser::expr::{BinaryOp, UnaryOp};
+use anyhow::{Error, Result, anyhow};
+use parser::expr::Value;
+use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
 
 impl CFGBuilder {
-    pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<ExprId, ()> {
-        let expr = &expr_pool[expr_id];
-        match expr {
+    pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
+        match expr_pool[expr_id] {
             Expr::Binary(_) => CFGBuilder::fold_binary(expr_pool, expr_id),
             Expr::Unary(_) => CFGBuilder::fold_unary(expr_pool, expr_id),
-            Expr::Value(_) => Ok(expr_id),
-            _ => Err(()),
+            Expr::Value(_) => Ok(()),
+            Expr::Variable(_) => Ok(()),
+            Expr::Assign(assign) => {
+                CFGBuilder::fold_constant(expr_pool, assign.val)?;
+                let new_assign = Expr::Assign(Assign::new(assign.name, assign.val).into());
+                expr_pool[expr_id] = new_assign;
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
+    pub fn is_lhs_or_rhs_variable(expr_pool: &ExprPool, lhs: ExprId, rhs: ExprId) -> bool {
+        expr_pool[lhs].is_variable() || expr_pool[rhs].is_variable()
+    }
 
-    pub fn fold_binary<'a>(expr_pool: &mut ExprPool, binary: ExprId) -> Result<ExprId, ()> {
-        let binary = expr_pool.get(binary).unwrap().get_binary()?;
+    pub fn fold_binary<'a>(expr_pool: &mut ExprPool, binary_id: ExprId) -> Result<()> {
+        let binary = expr_pool.get(binary_id).unwrap().get_binary()?;
 
-        let folded_lhs = CFGBuilder::fold_constant(expr_pool, binary.lhs)?;
-        let folded_rhs = CFGBuilder::fold_constant(expr_pool, binary.rhs)?;
+        CFGBuilder::fold_constant(expr_pool, binary.lhs)?;
+        CFGBuilder::fold_constant(expr_pool, binary.rhs)?;
+
+        let folded_rhs = binary.rhs;
+        let folded_lhs = binary.lhs;
+
+        if CFGBuilder::is_lhs_or_rhs_variable(expr_pool, folded_lhs, folded_rhs) {
+            expr_pool[binary_id] = Binary::new(folded_lhs, binary.op, folded_rhs).into();
+        }
+
         if let Expr::Value(lhs) = &expr_pool[folded_lhs] {
             if let Expr::Value(rhs) = &expr_pool[folded_rhs] {
                 if !lhs.same_variant(rhs) {
-                    return Err(());
+                    return Err(anyhow!("cannot fold different variants"));
                 }
                 if lhs.is_string_lit() && binary.op != BinaryOp::Plus {
-                    return Err(());
+                    return Err(anyhow!("strings can only be concat"));
                 }
             }
         }
 
-        let lhs = expr_pool[folded_lhs].get_value()?;
-        let rhs = expr_pool[folded_rhs].get_value()?;
+        let lhs_expr = &expr_pool[folded_lhs];
+        let rhs_expr = &expr_pool[folded_rhs];
+
+        if lhs_expr.is_variable() || rhs_expr.is_variable() {
+            expr_pool[binary_id] = Binary::new(folded_lhs, binary.op, folded_rhs).into();
+            return Ok(());
+        }
+
+        let lhs = lhs_expr.get_value()?;
+        let rhs = rhs_expr.get_value()?;
 
         let folded = match binary.op {
             BinaryOp::Plus => lhs + rhs,
             BinaryOp::Minus => lhs - rhs,
             BinaryOp::Slash => lhs / rhs,
             BinaryOp::Star => lhs * rhs,
-            _ => return Err(()),
-        };
+            BinaryOp::And | BinaryOp::Or if lhs.is_bool() && rhs.is_bool() => {
+                Value::Bool(lhs.fold_and_or(binary.op, rhs)?)
+            }
 
-        Ok(expr_pool.insert(Expr::Value(folded)))
+            _ => return Err(anyhow!("cannot fold {lhs:?} and {rhs:?}")),
+        };
+        expr_pool[binary_id] = Expr::Value(folded);
+        Ok(())
     }
 
-    pub fn fold_unary<'a>(expr_pool: &mut ExprPool, un: ExprId) -> Result<ExprId, ()> {
-        let un = expr_pool.get(un).unwrap().get_unary()?;
-        let opnd = CFGBuilder::fold_constant(expr_pool, un.opnd)?;
-        let folded_opnd = expr_pool[opnd].get_value()?;
-        match un.op {
-            UnaryOp::Bang => Ok(expr_pool.insert(Expr::Value(!folded_opnd))),
-            UnaryOp::Minus => Ok(expr_pool.insert(Expr::Value(-folded_opnd))),
+    pub fn fold_unary<'a>(expr_pool: &mut ExprPool, un: ExprId) -> Result<()> {
+        let unary = expr_pool.get(un).unwrap().get_unary()?;
+        CFGBuilder::fold_constant(expr_pool, unary.opnd)?;
+        let folded_expr = &expr_pool[un];
+        if folded_expr.is_variable() {
+            return Ok(());
         }
+        let folded_opnd = folded_expr.get_value()?;
+        match unary.op {
+            UnaryOp::Bang => expr_pool[un] = Expr::Value(!folded_opnd),
+
+            UnaryOp::Minus => expr_pool[un] = Expr::Value(-folded_opnd),
+        }
+        Ok(())
     }
 }
