@@ -25,7 +25,7 @@ pub enum Literal {
 
 impl Literal {
     pub fn is_bool(self) -> bool {
-        matches!(self, Literal::Bool(_) )
+        matches!(self, Literal::Bool(_))
     }
 
     pub fn get_bool(self) -> Result<bool> {
@@ -158,7 +158,6 @@ impl Neg for Literal {
 }
 
 impl Value {
-
     pub fn is_bool(&self) -> bool {
         matches!(self, Value::Literal(Literal::Bool(_)))
     }
@@ -169,7 +168,6 @@ impl Value {
     pub fn get_literal(&self) -> Result<Literal> {
         if let Value::Literal(lit) = self {
             return Ok(*lit);
-
         }
         Err(anyhow!("Cannot get literal from: {:?}", self))
     }
@@ -184,7 +182,6 @@ impl Value {
     pub const fn is_string_lit(&self) -> bool {
         matches!(self, Value::Literal(Literal::String(_)))
     }
-
 
     pub fn concat_value_strings(
         &self,

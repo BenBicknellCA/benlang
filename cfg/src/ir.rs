@@ -1,11 +1,11 @@
 use anyhow::{Result, anyhow};
 use parser::ExprPool;
 use parser::expr::Expr;
-use parser::value::Value;
 use parser::expr_parser::ExprId;
 use parser::object::Function;
 use parser::scanner::Symbol;
 use parser::stmt::Stmt;
+use parser::value::Value;
 
 #[derive(Debug)]
 pub enum HIR {

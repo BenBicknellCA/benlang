@@ -102,7 +102,6 @@ pub enum Expr {
 }
 
 impl Expr {
-
     pub const fn is_variable(&self) -> bool {
         matches!(self, Expr::Variable(_))
     }
@@ -129,7 +128,7 @@ impl Expr {
             _ => false,
         }
     }
-   pub fn get_value(&self) -> Result<&Value> {
+    pub fn get_value(&self) -> Result<&Value> {
         if let Expr::Value(val) = self {
             return Ok(val);
         }
@@ -148,7 +147,6 @@ impl Expr {
         }
         Err(anyhow!("cannot get unary from {:?}", self))
     }
-
 
     pub fn is_string_val(&self) -> bool {
         if let Expr::Value(Value::Literal(Literal::String(_))) = self {

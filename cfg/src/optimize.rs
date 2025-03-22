@@ -2,9 +2,9 @@ use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
 use anyhow::{Result, anyhow};
-use parser::value::{Literal, Value};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
+use parser::value::{Literal, Value};
 
 impl CFGBuilder {
     pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
@@ -20,7 +20,6 @@ impl CFGBuilder {
                 Ok(())
             }
             _ => Ok(()),
-
         }
     }
     pub fn is_lhs_or_rhs_variable(expr_pool: &ExprPool, lhs: ExprId, rhs: ExprId) -> bool {
@@ -85,7 +84,6 @@ impl CFGBuilder {
 
         if folded_expr.is_variable() {
             return Ok(());
-
         }
 
         let folded_opnd = folded_expr.get_value()?.get_literal()?;
@@ -93,7 +91,7 @@ impl CFGBuilder {
             UnaryOp::Bang => {
                 assert!(folded_opnd.is_bool());
                 !folded_opnd
-            },
+            }
 
             UnaryOp::Minus => {
                 assert!(folded_opnd.is_number());
