@@ -31,6 +31,7 @@ pub enum Token {
     Identifier(Symbol),
     StringLiteral(Symbol),
     Number(f64),
+    //todo
     //    Double(f32),
     And,
     Class,
@@ -55,6 +56,8 @@ pub enum Token {
     Invalid,
     Discard,
     EOF,
+    BitAnd,
+    BitOr,
 }
 
 impl Token {
@@ -100,7 +103,7 @@ impl Token {
     //        panic!("{} is not a symbol", self);
     //    }
 
-    pub fn get_iden_symbol(&self) -> Option<Symbol> {
+    pub const fn get_iden_symbol(&self) -> Option<Symbol> {
         if let Token::Identifier(symbol) = self {
             return Some(*symbol);
         }
@@ -173,6 +176,8 @@ impl From<Token> for usize {
             Token::Invalid => 45,
             Token::Discard => 46,
             Token::EOF => 47,
+            Token::BitAnd => 48,
+            Token::BitOr => 49,
         }
     }
 }
@@ -232,6 +237,14 @@ impl Scanner<'_> {
             '/' => Token::Slash,
             ',' => Token::Comma,
             '*' => Token::Star,
+            '&' => match self.char_iter.next_if_eq(&(pos + 1, '&')) {
+                Some(_equals) => Token::And,
+                None => Token::BitAnd,
+            },
+            '|' => match self.char_iter.next_if_eq(&(pos + 1, '|')) {
+                Some(_equals) => Token::Or,
+                None => Token::BitOr,
+            },
 
             '"' => {
                 let mut end = 0;
@@ -276,6 +289,10 @@ impl Scanner<'_> {
         let num_string: &str = &self.source[pos..end];
         let num_flt: f64 = num_string.parse().expect("Invalid number format");
         self.tokens.push(Token::Number(num_flt));
+    }
+
+    pub fn scan_func_decl() -> Token {
+        todo!()
     }
 
     pub fn lookup_keyword(&mut self, id: &'static str) -> Token {

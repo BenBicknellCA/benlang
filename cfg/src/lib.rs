@@ -6,9 +6,9 @@ mod phi;
 mod ssa;
 
 use crate::basic_block::BasicBlock;
-use crate::ir::Ir;
+use crate::ir::HIR;
 use crate::ssa::SSABuilder;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use parser::expr_parser::ExprId;
 use parser::scanner::{Symbol, SymbolTable};
 use parser::stmt_parser::StmtId;
@@ -78,14 +78,43 @@ impl CFGBuilder {
         node_index
     }
 
+    fn optimize_hir(expr_pool: &mut ExprPool, hir: &HIR) -> Result<()> {
+        let expr_id = hir.get_expr()?;
+        CFGBuilder::fold_constant(expr_pool, expr_id)?;
+        Ok(())
+    }
+
     fn fold_expr(&mut self, expr_id: ExprId) {}
 
-    fn add_ir_stmt_to_current_node(&mut self, ir_stmt: Ir) {
-        if let Some(current_node) = self.cfg.node_weight_mut(self.current_node) {
-            // optimize expr
-
-            current_node.append_body(ir_stmt);
+    fn add_ir_stmt_to_node(
+        cfg: &mut CFG,
+        node: NodeIndex,
+        expr_pool: &mut ExprPool,
+        hir_stmt: HIR,
+    ) -> Result<()> {
+        CFGBuilder::optimize_hir(expr_pool, &hir_stmt)?;
+        if let Some(current_node) = cfg.node_weight_mut(node) {
+            return {
+                current_node.append_body(hir_stmt);
+                Ok(())
+            };
         }
+        Err(anyhow!("could not add ir stmt to node {node:?}"))
+    }
+
+    fn add_cond_to_node(
+        cfg: &mut CFG,
+        node: NodeIndex,
+        expr_pool: &mut ExprPool,
+        hir_stmt: HIR,
+    ) -> Result<bool> {
+        CFGBuilder::optimize_hir(expr_pool, &hir_stmt)?;
+        if let Some(current_node) = cfg.node_weight_mut(node) {
+            let cond = hir_stmt.get_value(expr_pool)?.is_bool();
+            current_node.append_body(hir_stmt);
+            return Ok(cond);
+        }
+        Err(anyhow!("could not add cond to node {node:?}"))
     }
 
     fn get_cond_id<T: Conditional>(&self, cond: T) -> ExprId {
@@ -96,8 +125,8 @@ impl CFGBuilder {
         self.expr_pool.get(cond.cond()).expect("cond id")
     }
 
-    fn expr_to_ir(&self, cond: ExprId) -> Ir {
-        Ir::try_from(&Stmt::Expr(cond)).unwrap()
+    fn expr_to_ir(&self, cond: ExprId) -> HIR {
+        HIR::try_from(&Stmt::Expr(cond)).unwrap()
     }
 
     fn add_empty_node_and_set_current(&mut self, seal: bool) -> NodeIndex {
@@ -106,23 +135,48 @@ impl CFGBuilder {
     }
 
     fn process_if_stmt(&mut self, if_stmt: &If) -> Result<()> {
-        let cond_ir = self.expr_to_ir(if_stmt.cond());
+        CFGBuilder::fold_constant(&mut self.expr_pool, if_stmt.cond())?;
+        // if cond is true proceed normally
+
+        // if cond is false do not process first branch
+        let do_than_branch = self.expr_pool[if_stmt.cond()]
+            .get_bool()
+            .is_ok_and(|res| res);
+
+        // if cond is false but second branch exists, do not process first branch, process second branch as unconditional
+        // todo: fix empty entry exit ndoes on skippign of than block
         let if_entry = self.current_node;
+
         let if_exit = self.add_empty_node(false);
-        self.cfg[if_entry].statements.push(cond_ir);
+
+        // todo: eliminate `than` branch if condition folds to false
         self.ssa.seal_block(if_entry, &self.cfg)?;
 
-        let then_entry = self.add_empty_node_and_set_current(false);
-        self.cfg.add_edge(if_entry, then_entry, Some(true));
-        self.ssa.seal_block(then_entry, &self.cfg)?;
-        self.stmts(&if_stmt.first_block().body)?;
+        let mut if_entry_else_entry_edge: (NodeIndex, Option<bool>) = (self.current_node, None);
+        if do_than_branch {
+            let cond_ir = self.expr_to_ir(if_stmt.cond());
+            CFGBuilder::add_cond_to_node(&mut self.cfg, if_entry, &mut self.expr_pool, cond_ir)?;
+            //if `than` branch exists, edge from entry to `else` block is `false`
 
-        self.cfg.add_edge(self.current_node, if_exit, None);
+            let then_entry = self.add_empty_node_and_set_current(false);
+            self.cfg.add_edge(if_entry, then_entry, Some(true));
+            self.ssa.seal_block(then_entry, &self.cfg)?;
+            self.stmts(&if_stmt.first_block().body)?;
+
+            self.cfg.add_edge(self.current_node, if_exit, None);
+            if_entry_else_entry_edge = (self.current_node, Some(false));
+        }
 
         if let Some(second_branch_block) = if_stmt.second_block() {
-            let else_entry = self.add_empty_node_and_set_current(false);
-
-            self.cfg.add_edge(if_entry, else_entry, Some(false));
+            let else_entry = if !do_than_branch {
+                self.current_node
+            } else {
+                self.add_empty_node_and_set_current(false)
+            };
+            if if_entry != else_entry {
+                self.cfg
+                    .add_edge(if_entry, else_entry, if_entry_else_entry_edge.1);
+            }
             self.ssa.seal_block(else_entry, &self.cfg)?;
 
             self.stmts(&second_branch_block.body)?;
@@ -135,10 +189,23 @@ impl CFGBuilder {
     }
 
     fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
-        let cond_ir = self.expr_to_ir(while_stmt.cond());
+        CFGBuilder::fold_constant(&mut self.expr_pool, while_stmt.cond())?;
+
+        let do_while_body = self.expr_pool[while_stmt.cond()]
+            .get_bool()
+            .is_ok_and(|res| res);
+
         let while_entry = self.current_node;
+
+        self.ssa.seal_block(while_entry, &self.cfg)?;
+
+        if !do_while_body {
+            return Ok(());
+        }
+        let cond_ir = self.expr_to_ir(while_stmt.cond());
+
         let while_header = self.add_empty_node(false);
-        self.cfg[while_header].statements.push(cond_ir);
+        CFGBuilder::add_cond_to_node(&mut self.cfg, while_header, &mut self.expr_pool, cond_ir)?;
         self.cfg.add_edge(while_entry, while_header, None);
         let body_entry = self.add_empty_node(false);
         let while_exit = self.add_empty_node(false);
@@ -158,13 +225,11 @@ impl CFGBuilder {
     }
 
     fn ret_0(&mut self) {
-        self.cfg[self.current_node].statements.push(Ir::Return0)
+        self.cfg[self.current_node].append_body(HIR::Return0)
     }
 
     fn ret_1(&mut self, val: ExprId) {
-        self.cfg[self.current_node]
-            .statements
-            .push(Ir::Return1(val))
+        self.cfg[self.current_node].append_body(HIR::Return1(val))
     }
 
     fn block_stmt(&mut self, block: &Block) -> Result<()> {
@@ -236,6 +301,7 @@ impl CFGBuilder {
     fn stmts(&mut self, stmts: &[StmtId]) -> Result<()> {
         let mut seal_prev = false;
         for stmt in stmts {
+            println!("stmt: {stmt:?}");
             if seal_prev {
                 self.ssa.seal_block(self.current_node, &self.cfg).unwrap();
             }
@@ -288,8 +354,13 @@ impl CFGBuilder {
             self.term_stmt(stmt_id)?;
             return Ok(true);
         }
-        if let Ok(ir_stmt) = Ir::try_from(&self.stmt_pool[stmt_id]) {
-            self.add_ir_stmt_to_current_node(ir_stmt);
+        if let Ok(ir_stmt) = HIR::try_from(&self.stmt_pool[stmt_id]) {
+            CFGBuilder::add_ir_stmt_to_node(
+                &mut self.cfg,
+                self.current_node,
+                &mut self.expr_pool,
+                ir_stmt,
+            )?;
             return Ok(true);
         }
         Ok(false)
@@ -312,11 +383,11 @@ mod cfg_tests {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {
                     var test_var = 0;
-                    while (true) {
-                        if (true) {
-                            test_var = 11223;
+                    while (true && true) {
+                        if (false) {
+                            test_var = 11223 * 99;
                         } else {
-                            test_var = 100;
+                            test_var = 100 - 22;
                         }
                     }
                     test_var + 3000;
@@ -352,6 +423,28 @@ mod cfg_tests {
         };
         let phis: std::collections::HashSet<ssa::PhiId> = cfg_builder.ssa.phis.0.keys().collect();
         cfg_builder.remove_redundant_phis(&phis);
+        for (block, map) in &cfg_builder.ssa.var_defs.0 {
+            for (name, val) in map {
+                print!(
+                    "block: {block:?}: name: {:?} // {val:?} ",
+                    cfg_builder.ssa.symbol_table.resolve(*name).unwrap(),
+                );
+                match val {
+                    crate::ssa::PhiOrExpr::Phi(id) => {
+                        println!("{id:?}")
+                    }
+                    crate::ssa::PhiOrExpr::Expr(id) => {
+                        println!("{:?}", &cfg_builder.expr_pool[*id])
+                    }
+                }
+            }
+        }
+        println!();
+        println!();
+        println!();
+        for (id, val) in &cfg_builder.expr_pool {
+            println!("id: {id:?}, val: {val:?}");
+        }
 
         assert_eq!(
             cfg_builder.cfg.node_count(),

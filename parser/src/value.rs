@@ -1,5 +1,8 @@
 use crate::ExprPool;
 use crate::expr;
+
+use crate::expr::BinaryOp;
+
 use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
 use anyhow::{Error, Result, anyhow};
@@ -21,6 +24,10 @@ pub enum Literal {
 }
 
 impl Literal {
+    pub fn is_bool(self) -> bool {
+        matches!(self, Literal::Bool(_))
+    }
+
     pub fn get_bool(self) -> Result<bool> {
         if let Literal::Bool(boolval) = self {
             return Ok(boolval);
@@ -65,6 +72,16 @@ impl Literal {
             return true;
         }
         false
+    }
+
+    pub fn fold_and_or(&self, op: BinaryOp, rhs: &Literal) -> Result<bool> {
+        let lhs = self.get_bool()?;
+        let rhs = rhs.get_bool()?;
+        match op {
+            BinaryOp::And => Ok(lhs && rhs),
+            BinaryOp::Or => Ok(lhs || rhs),
+            _ => Err(anyhow!("cannot fold {lhs:?} and {rhs:?}")),
+        }
     }
 }
 impl Mul for Literal {
@@ -141,6 +158,10 @@ impl Neg for Literal {
 }
 
 impl Value {
+    pub fn is_bool(&self) -> bool {
+        matches!(self, Value::Literal(Literal::Bool(_)))
+    }
+
     pub fn same_variant(&self, other: &Value) -> bool {
         discriminant(self) == discriminant(other)
     }
@@ -157,6 +178,11 @@ impl Value {
         }
         Err(anyhow!("Cannot add literals {:?} and {:?}", self, rhs))
     }
+
+    pub const fn is_string_lit(&self) -> bool {
+        matches!(self, Value::Literal(Literal::String(_)))
+    }
+
     pub fn concat_value_strings(
         &self,
         rhs: Value,

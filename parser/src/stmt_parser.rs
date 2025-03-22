@@ -1,12 +1,12 @@
 use crate::Parser;
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::value::{Literal, Value};
 
 use crate::object::Function;
 use crate::scanner::Symbol;
 use crate::scanner::Token;
 use crate::stmt::*;
+use crate::value::{Literal, Value};
 use anyhow::Result;
 use slotmap::new_key_type;
 
