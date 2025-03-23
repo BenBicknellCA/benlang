@@ -228,7 +228,6 @@ pub struct FuncData {
     pub current: FuncId,
     pub stmt_pools: SecondaryMap<FuncId, StmtPool>,
     pub expr_pools: SecondaryMap<FuncId, ExprPool>,
-
 }
 
 impl FuncData {
@@ -365,7 +364,8 @@ impl Parser {
     }
 
     pub fn get_bin(&self, expr_key: ExprId) -> Result<(&Expr, BinaryOp, &Expr)> {
-        if let Some(Expr::Binary(bin)) = self.func_data.expr_pools[self.current_func()].get(expr_key)
+        if let Some(Expr::Binary(bin)) =
+            self.func_data.expr_pools[self.current_func()].get(expr_key)
         {
             let lhs = bin.lhs;
             let rhs = bin.rhs;

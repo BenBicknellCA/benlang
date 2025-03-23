@@ -2,8 +2,8 @@ use cfg::CFG;
 use cfg::ir::HIR;
 use cfg::ssa::SSABuilder;
 use parser::ExprPool;
-use parser::FuncPool;
 use parser::FuncData;
+use parser::FuncPool;
 use parser::expr_parser::ExprId;
 use parser::object::{FuncId, Function};
 use parser::scanner::{Symbol, SymbolTable};
@@ -64,7 +64,8 @@ impl Generator {
         val: ExprId,
         cfg: &CFG,
         bytecode: &mut Bytecode,
-    ) {}
+    ) {
+    }
 
     pub fn gen_func_decl_bytecode(&self, cfg: &CFG, bytecode: &mut Bytecode) {}
 

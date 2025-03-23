@@ -7,8 +7,8 @@ pub mod ssa;
 
 use crate::basic_block::{BasicBlock, TermKind};
 use crate::ir::HIR;
-use parser::object::FuncId;
 use parser::FuncPool;
+use parser::object::FuncId;
 
 use crate::ssa::SSABuilder;
 use anyhow::{Result, anyhow};
@@ -36,7 +36,12 @@ pub struct CFGBuilder {
 }
 
 impl CFGBuilder {
-    pub fn new(symbol_table: SymbolTable, current_func: FuncId, func_data: FuncData, func_pool: FuncPool) -> Self {
+    pub fn new(
+        symbol_table: SymbolTable,
+        current_func: FuncId,
+        func_data: FuncData,
+        func_pool: FuncPool,
+    ) -> Self {
         let mut cfg: Graph<BasicBlock, Option<bool>> = Graph::new();
         let current_node = cfg.add_node(BasicBlock::default());
         cfg[current_node].node_index = current_node;
@@ -68,7 +73,6 @@ impl CFGBuilder {
         self.get_expr_pool_mut(self.current_func)
     }
 
-
     fn get_stmt_pool_mut(&mut self, func_id: FuncId) -> &mut StmtPool {
         &mut self.func_data.stmt_pools[func_id]
     }
@@ -80,7 +84,6 @@ impl CFGBuilder {
     fn get_stmt_pool(&self, func_id: FuncId) -> &StmtPool {
         &self.func_data.stmt_pools[func_id]
     }
-
 
     fn get_current_stmt_pool(&self) -> &StmtPool {
         self.get_stmt_pool(self.current_func)
@@ -154,7 +157,9 @@ impl CFGBuilder {
     }
 
     fn get_cond_ref<T: Conditional>(&self, cond: T) -> &Expr {
-        self.get_current_expr_pool().get(cond.cond()).expect("cond id")
+        self.get_current_expr_pool()
+            .get(cond.cond())
+            .expect("cond id")
     }
 
     fn expr_to_ir(&self, cond: ExprId) -> HIR {
@@ -192,7 +197,12 @@ impl CFGBuilder {
         let mut if_entry_else_entry_edge: (NodeIndex, Option<bool>) = (self.current_node, None);
         if do_than_branch {
             let cond_ir = self.expr_to_ir(if_stmt.cond());
-            CFGBuilder::add_cond_to_node(&mut self.cfg, if_entry, &mut self.func_data.expr_pools[self.current_func], cond_ir)?;
+            CFGBuilder::add_cond_to_node(
+                &mut self.cfg,
+                if_entry,
+                &mut self.func_data.expr_pools[self.current_func],
+                cond_ir,
+            )?;
             //if `than` branch exists, edge from entry to `else` block is `false`
 
             let then_entry = self.add_empty_node_and_set_current(false);
@@ -244,7 +254,12 @@ impl CFGBuilder {
         let while_header = self.add_empty_node(false);
         self.set_term_kind(while_header, TermKind::While);
 
-        CFGBuilder::add_cond_to_node(&mut self.cfg, while_header, &mut self.func_data.expr_pools[self.current_func], cond_ir)?;
+        CFGBuilder::add_cond_to_node(
+            &mut self.cfg,
+            while_header,
+            &mut self.func_data.expr_pools[self.current_func],
+            cond_ir,
+        )?;
         self.cfg.add_edge(while_entry, while_header, None);
         let body_entry = self.add_empty_node(false);
         let while_exit = self.add_empty_node(false);
@@ -357,7 +372,9 @@ impl CFGBuilder {
         match stmt {
             Stmt::Block(blck) => for stmt in &blck.body {},
             Stmt::Expr(expr_id) => {
-                if let Expr::Assign(assign) = &self.func_data.expr_pools[self.current_func][*expr_id] {
+                if let Expr::Assign(assign) =
+                    &self.func_data.expr_pools[self.current_func][*expr_id]
+                {
                     self.ssa.write_variable(
                         assign.name,
                         self.current_node,
@@ -452,12 +469,7 @@ mod cfg_tests {
         let func_data = parser.func_data;
         let func_pool = parser.func_pool;
 
-        let mut cfg_builder = CFGBuilder::new(
-            parser.interner,
-            main,
-            func_data,
-            func_pool,
-        );
+        let mut cfg_builder = CFGBuilder::new(parser.interner, main, func_data, func_pool);
         cfg_builder
     }
 
