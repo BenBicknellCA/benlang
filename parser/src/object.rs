@@ -9,7 +9,7 @@ pub struct Function {
     pub body: Block,
     pub arity: u8,
     pub params: Option<Vec<Symbol>>,
-    func_id: FuncId,
+    pub func_id: FuncId,
 }
 
 impl Function {

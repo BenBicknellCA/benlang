@@ -429,6 +429,7 @@ impl CFGBuilder {
     }
 
     pub fn build_func_cfg(&mut self, func: &Function) -> Result<()> {
+        self.current_func = func.func_id;
         self.stmts(&func.body.body)
     }
 }
@@ -482,9 +483,9 @@ mod cfg_tests {
             .remove(cfg_builder.func_data.main)
             .unwrap();
         for func in funcs {
-            let child = cfg_builder.func_pool.remove(func).unwrap();
-
-            cfg_builder.build_func_cfg(&child).unwrap();
+            cfg_builder.current_func = func;
+            let child = cfg_builder.func_pool.get(func).unwrap();
+            cfg_builder.build_func_cfg(&child.clone()).unwrap();
             //        println!(
             //            "{:?}",
             //            Dot::with_config(&cfg_builder.cfg, &[Config::EdgeIndexLabel])

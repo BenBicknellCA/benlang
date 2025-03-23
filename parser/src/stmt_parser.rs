@@ -56,11 +56,11 @@ impl Parser {
     }
     fn function(&mut self) -> Result<StmtId> {
         let parent = self.func_data.current;
+        let child = self.enter_func(parent);
         self.consume(Token::Func)?;
         let name: Symbol = self.parse_var()?;
         self.consume(Token::LeftParen)?;
         let mut arity: u8 = 0;
-        let child = self.enter_func(parent);
 
         let params: Option<Vec<Symbol>> = if self.check(Token::RightParen).is_err() {
             let first_param = self.parse_var()?;

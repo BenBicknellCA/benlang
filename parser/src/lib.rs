@@ -235,8 +235,10 @@ impl FuncData {
         let main = func_pool.insert(Function::default());
         let current = main;
         let mut parent_to_children = SecondaryMap::new();
+
         let mut expr_pools: SecondaryMap<FuncId, ExprPool> = SecondaryMap::new();
         let mut stmt_pools: SecondaryMap<FuncId, StmtPool> = SecondaryMap::new();
+
         expr_pools.insert(main, ExprPool::with_key());
         stmt_pools.insert(main, StmtPool::with_key());
         parent_to_children.insert(main, Vec::new());
@@ -298,10 +300,12 @@ impl Parser {
 
     pub fn enter_func(&mut self, parent: FuncId) -> FuncId {
         let placeholder_child = self.func_pool.insert(Function::default());
+        self.func_data.current = placeholder_child;
 
         self.func_data
             .stmt_pools
             .insert(placeholder_child, SlotMap::with_key());
+
         self.func_data
             .expr_pools
             .insert(placeholder_child, SlotMap::with_key());
@@ -316,7 +320,6 @@ impl Parser {
                 .parent_to_children
                 .insert(parent, vec![placeholder_child]);
         }
-        self.func_data.current = placeholder_child;
         placeholder_child
     }
 
