@@ -48,12 +48,12 @@ impl Parser {
         match token {
             Token::Number(num) => self.number(num),
             Token::StringLiteral(strng) => self.string_lit(strng),
-            Token::True => Ok(self
-                .expr_pool
-                .insert(Value::Literal(Literal::Bool(true)).into())),
-            Token::False => Ok(self
-                .expr_pool
-                .insert(Value::Literal(Literal::Bool(false)).into())),
+            Token::True => {
+                Ok(self.insert_expr_in_current_func(Value::Literal(Literal::Bool(true)).into()))
+            }
+            Token::False => {
+                Ok(self.insert_expr_in_current_func(Value::Literal(Literal::Bool(false)).into()))
+            }
             _ => Err(ParseError::InvalidPrimary { primary: token }.into()),
         }
     }
@@ -106,8 +106,6 @@ impl Parser {
         let rhs = self.parse_expression(prec)?;
 
         let bin_op = BinaryOp::try_from(op)?;
-        Ok(self
-            .expr_pool
-            .insert(crate::expr::Binary::new(pre_lhs, bin_op, rhs).into()))
+        Ok(self.insert_expr_in_current_func(crate::expr::Binary::new(pre_lhs, bin_op, rhs).into()))
     }
 }

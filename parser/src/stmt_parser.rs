@@ -40,7 +40,8 @@ impl Parser {
         self.consume(Token::Return)?;
 
         if self.check(Token::Semicolon).is_ok() {
-            return Ok(self.stmt_pool.insert(Stmt::Return0));
+            let current = self.current_func();
+            return Ok(self.insert_stmt_in_current_func(Stmt::Return0));
         }
 
         let to_ret = self.expression()?;
@@ -55,11 +56,11 @@ impl Parser {
     }
     fn function(&mut self) -> Result<StmtId> {
         let parent = self.func_data.current;
+        let child = self.enter_func(parent);
         self.consume(Token::Func)?;
         let name: Symbol = self.parse_var()?;
         self.consume(Token::LeftParen)?;
         let mut arity: u8 = 0;
-        let child = self.func_data.enter_func(parent);
 
         let params: Option<Vec<Symbol>> = if self.check(Token::RightParen).is_err() {
             let first_param = self.parse_var()?;
@@ -81,10 +82,10 @@ impl Parser {
         let body = self.block()?;
 
         // exit function
-        self.func_data.func_pool[child] = Function::new(Some(name), body, arity, params, child);
+        self.func_pool[child] = Function::new(Some(name), body, arity, params, child);
         self.func_data.current = parent;
 
-        let fun: StmtId = self.stmt_pool.insert(Stmt::Function(child));
+        let fun: StmtId = self.func_data.stmt_pools[parent].insert(Stmt::Function(child));
 
         //        let fun_obj = self.resolver.insert_obj(Object::Function(fun_obj));
         Ok(fun)
@@ -97,7 +98,8 @@ impl Parser {
         let var_val: ExprId = if self.consume(Token::Equal).is_ok() {
             self.expression()?
         } else {
-            self.expr_pool.insert(Value::Literal(Literal::Nil).into())
+            let current = self.current_func();
+            self.func_data.expr_pools[current].insert(Value::Literal(Literal::Nil).into())
         };
 
         self.consume(Token::Semicolon)?;
@@ -120,7 +122,7 @@ impl Parser {
         if self.check(Token::RightBrace).is_err() {
             while self.check(Token::RightBrace).is_err() {
                 let decl = self.declaration()?;
-                if let Some(stmt) = self.stmt_pool.get(decl) {
+                if let Some(stmt) = self.func_data.stmt_pools[self.current_func()].get(decl) {
                     if stmt.is_term() {
                         block.leaders.push(block.body.len() + 1);
                     }
@@ -135,7 +137,8 @@ impl Parser {
 
     fn block_stmt(&mut self) -> Result<StmtId> {
         let blck = self.block()?;
-        let blck_stmt = self.stmt_pool.insert(Stmt::Block(blck));
+        let current = self.current_func();
+        let blck_stmt = self.insert_stmt_in_current_func(Stmt::Block(blck));
         Ok(blck_stmt)
     }
 

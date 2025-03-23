@@ -157,8 +157,7 @@ pub type FuncPool = SlotMap<FuncId, Function>;
 pub struct Parser {
     iter: ParserIter,
     pub ast: AST,
-    pub stmt_pool: StmtPool,
-    pub expr_pool: ExprPool,
+    pub func_pool: FuncPool,
     pub func_data: FuncData,
     pub interner: SymbolTable,
 }
@@ -223,58 +222,105 @@ impl ParserIter {
 }
 #[derive(Debug)]
 pub struct FuncData {
-    pub func_pool: FuncPool,
     pub child_to_parent: SecondaryMap<FuncId, FuncId>,
     pub parent_to_children: SecondaryMap<FuncId, Vec<FuncId>>,
     pub main: FuncId,
     pub current: FuncId,
+    pub stmt_pools: SecondaryMap<FuncId, StmtPool>,
+    pub expr_pools: SecondaryMap<FuncId, ExprPool>,
 }
 
 impl FuncData {
-    pub fn new_main() -> Self {
-        let mut func_pool = SlotMap::with_key();
+    pub fn new_main(func_pool: &mut FuncPool) -> Self {
         let main = func_pool.insert(Function::default());
         let current = main;
         let mut parent_to_children = SecondaryMap::new();
+
+        let mut expr_pools: SecondaryMap<FuncId, ExprPool> = SecondaryMap::new();
+        let mut stmt_pools: SecondaryMap<FuncId, StmtPool> = SecondaryMap::new();
+
+        expr_pools.insert(main, ExprPool::with_key());
+        stmt_pools.insert(main, StmtPool::with_key());
         parent_to_children.insert(main, Vec::new());
         Self {
-            func_pool,
             main,
             current,
             child_to_parent: SecondaryMap::new(),
             parent_to_children,
+            expr_pools,
+            stmt_pools,
         }
-    }
-    pub fn enter_func(&mut self, parent: FuncId) -> FuncId {
-        let placeholder_child = self.func_pool.insert(Function::default());
-        self.child_to_parent.insert(placeholder_child, parent);
-        if let Some(children) = self.parent_to_children.get_mut(parent) {
-            children.push(placeholder_child);
-        } else {
-            self.parent_to_children
-                .insert(parent, vec![placeholder_child]);
-        }
-        self.current = placeholder_child;
-        placeholder_child
     }
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>, interner: SymbolTable) -> Self {
         let ast: AST = Vec::new();
-        let func_data = FuncData::new_main();
+        let mut func_pool: FuncPool = FuncPool::with_key();
+        let func_data = FuncData::new_main(&mut func_pool);
         let mut parser = Self {
             iter: ParserIter::new(tokens),
             ast,
-            stmt_pool: SlotMap::with_key(),
-            expr_pool: SlotMap::with_key(),
             func_data,
+            func_pool,
 
             interner,
         };
         // 'prime' parser
         parser.advance().unwrap();
         parser
+    }
+
+    pub fn current_func(&self) -> FuncId {
+        self.func_data.current
+    }
+
+    pub fn insert_expr_in_func_pool(&mut self, func: FuncId, expr: Expr) -> ExprId {
+        self.func_data.expr_pools[func].insert(expr)
+    }
+
+    pub fn insert_expr_in_current_func(&mut self, expr: Expr) -> ExprId {
+        let current = self.current_func();
+        self.insert_expr_in_func_pool(current, expr)
+    }
+
+    pub fn insert_stmt_in_func_pool(&mut self, func: FuncId, stmt: Stmt) -> StmtId {
+        self.func_data.stmt_pools[func].insert(stmt)
+    }
+
+    pub fn insert_stmt_in_current_func(&mut self, stmt: Stmt) -> StmtId {
+        let current = self.current_func();
+        self.insert_stmt_in_func_pool(current, stmt)
+    }
+
+    pub fn insert_stmt_in_current_func_body(&mut self, stmt: StmtId) {
+        let current = self.current_func();
+        self.func_pool[current].body.body.push(stmt);
+    }
+
+    pub fn enter_func(&mut self, parent: FuncId) -> FuncId {
+        let placeholder_child = self.func_pool.insert(Function::default());
+        self.func_data.current = placeholder_child;
+
+        self.func_data
+            .stmt_pools
+            .insert(placeholder_child, SlotMap::with_key());
+
+        self.func_data
+            .expr_pools
+            .insert(placeholder_child, SlotMap::with_key());
+
+        self.func_data
+            .child_to_parent
+            .insert(placeholder_child, parent);
+        if let Some(children) = self.func_data.parent_to_children.get_mut(parent) {
+            children.push(placeholder_child);
+        } else {
+            self.func_data
+                .parent_to_children
+                .insert(parent, vec![placeholder_child]);
+        }
+        placeholder_child
     }
 
     fn consume(&mut self, token_type: Token) -> Result<Token> {
@@ -294,14 +340,13 @@ impl Parser {
 
     fn insert_stmt(&mut self, stmt: Stmt) -> Result<StmtId> {
         //        print!("inserting stmt: {:?}", &stmt);
-        let key = self.stmt_pool.insert(stmt);
+        let key = self.insert_stmt_in_func_pool(self.current_func(), stmt);
         //        println!(" // key: {key:?}");
         Ok(key)
     }
 
     fn insert_expr(&mut self, expr: Expr) -> Result<ExprId> {
-        //        print!("inserting expr: {:?}", &expr);
-        let key = self.expr_pool.insert(expr);
+        let key = self.insert_expr_in_func_pool(self.current_func(), expr);
         //       println!(" // key: {key:?}");
         Ok(key)
     }
@@ -322,14 +367,20 @@ impl Parser {
     }
 
     pub fn get_bin(&self, expr_key: ExprId) -> Result<(&Expr, BinaryOp, &Expr)> {
-        if let Some(Expr::Binary(bin)) = self.expr_pool.get(expr_key) {
+        if let Some(Expr::Binary(bin)) =
+            self.func_data.expr_pools[self.current_func()].get(expr_key)
+        {
             let lhs = bin.lhs;
             let rhs = bin.rhs;
             let op = bin.op;
             return Ok((
-                self.expr_pool.get(lhs).unwrap(),
+                self.func_data.expr_pools[self.current_func()]
+                    .get(lhs)
+                    .unwrap(),
                 op,
-                self.expr_pool.get(rhs).unwrap(),
+                self.func_data.expr_pools[self.current_func()]
+                    .get(rhs)
+                    .unwrap(),
             ));
         }
         Err(anyhow!("could not get bin {:?}", expr_key))

@@ -2,10 +2,20 @@ use crate::ir::HIR;
 use anyhow::{Result, anyhow};
 use petgraph::graph::NodeIndex;
 
+#[derive(Debug)]
+pub enum TermKind {
+    If,
+    While,
+    Return0,
+    Return1,
+    // Goto,
+}
+
 #[derive(Default, Debug)]
 pub struct BasicBlock {
     statements: Vec<HIR>,
     pub node_index: NodeIndex,
+    pub term_kind: Option<TermKind>,
 }
 
 impl BasicBlock {
@@ -21,6 +31,14 @@ impl BasicBlock {
             "could not get last element in basicblock {:?}",
             self.node_index
         ))
+    }
+
+    pub fn borrow_stmts(&self) -> &[HIR] {
+        &self.statements
+    }
+
+    pub fn set_term_kind(&mut self, term_kind: TermKind) {
+        self.term_kind = Some(term_kind);
     }
 
     pub fn is_empty(&self) -> bool {
