@@ -104,12 +104,12 @@ impl FuncProto {
     }
 }
 
-impl Into<FuncProto> for &Function {
-    fn into(self) -> FuncProto {
+impl From<&Function> for FuncProto {
+    fn from(val: &Function) -> Self {
         const NIL: Value = Value::Literal(Literal::Nil);
         let mut var_to_reg: HashMap<Symbol, u8> = HashMap::new();
         let mut count = 1;
-        if let Some(params) = &self.params {
+        if let Some(params) = &val.params {
             for param in params {
                 var_to_reg.insert(*param, count);
                 count += 1;
@@ -120,8 +120,8 @@ impl Into<FuncProto> for &Function {
             registers: [NIL; 255],
             free_reg: count,
             var_to_reg,
-            name: self.name,
-            arity: self.arity,
+            name: val.name,
+            arity: val.arity,
         }
     }
 }
