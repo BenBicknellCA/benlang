@@ -6,15 +6,16 @@ use parser::object::Function;
 use parser::scanner::Symbol;
 use parser::stmt::Stmt;
 use parser::value::Value;
+use parser::object::FuncId;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum HIR {
     Expr(ExprId),
     Return0,
     Return1(ExprId),
     Print(ExprId),
     Var(Symbol, ExprId),
-    DeclareFunc(Function),
+    DeclareFunc(FuncId),
 }
 
 impl HIR {

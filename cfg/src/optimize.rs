@@ -26,7 +26,7 @@ impl CFGBuilder {
         expr_pool[lhs].is_variable() || expr_pool[rhs].is_variable()
     }
 
-    pub fn fold_binary<'a>(expr_pool: &mut ExprPool, binary_id: ExprId) -> Result<()> {
+    pub fn fold_binary(expr_pool: &mut ExprPool, binary_id: ExprId) -> Result<()> {
         let binary = expr_pool.get(binary_id).unwrap().get_binary()?;
 
         CFGBuilder::fold_constant(expr_pool, binary.lhs)?;
@@ -77,7 +77,7 @@ impl CFGBuilder {
         Ok(())
     }
 
-    pub fn fold_unary<'a>(expr_pool: &mut ExprPool, un: ExprId) -> Result<()> {
+    pub fn fold_unary(expr_pool: &mut ExprPool, un: ExprId) -> Result<()> {
         let unary = expr_pool.get(un).unwrap().get_unary()?;
         CFGBuilder::fold_constant(expr_pool, unary.opnd)?;
         let folded_expr = &expr_pool[un];
