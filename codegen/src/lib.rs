@@ -51,7 +51,7 @@ impl Generator {
     }
     pub fn generate_func_proto(&mut self, cfg: &CFG, func_id: FuncId) -> FuncProto {
         let func: &Function = &self.func_pool[func_id];
-        let mut func_state: FuncProto = func.into();
+        let func_state: FuncProto = func.into();
         let root = NodeIndex::new(0);
         let graph = cfg.neighbors_directed(root, Direction::Outgoing);
         let mut bytecode = Vec::new();
@@ -63,7 +63,7 @@ impl Generator {
 
     pub fn gen_load(&self, bytecode: &mut Bytecode, expr: ExprId) -> u8 {
         let dst = self.get_free_reg_and_inc();
-        bytecode.push(OpCode::LoadVal(dst, expr.into()));
+        bytecode.push(OpCode::LoadVal(dst, expr));
         dst
     }
 
@@ -239,14 +239,14 @@ pub enum OpCode {
     //    BNot(RegIdx, RegIdx,
 }
 
-impl Into<RegOrExpr> for u8 {
-    fn into(self) -> RegOrExpr {
-        RegOrExpr::Reg(self)
+impl From<u8> for RegOrExpr {
+    fn from(val: u8) -> Self {
+        RegOrExpr::Reg(val)
     }
 }
 
-impl Into<RegOrExpr> for ExprId {
-    fn into(self) -> RegOrExpr {
-        RegOrExpr::Expr(self)
+impl From<ExprId> for RegOrExpr {
+    fn from(val: ExprId) -> Self {
+        RegOrExpr::Expr(val)
     }
 }
