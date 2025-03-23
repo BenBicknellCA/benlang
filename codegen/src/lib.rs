@@ -1,12 +1,11 @@
 use cfg::CFG;
-use std::cell::Cell;
 use cfg::ir::HIR;
 use cfg::ssa::SSABuilder;
 use parser::ExprPool;
 use parser::FuncData;
 use parser::FuncPool;
-use parser::expr::{BinaryOp, Expr};
 use parser::expr::{Binary, Unary};
+use parser::expr::{BinaryOp, Expr};
 use parser::expr_parser::ExprId;
 use parser::object::{FuncId, Function};
 use parser::scanner::{Symbol, SymbolTable};
@@ -15,6 +14,7 @@ use parser::value::Value;
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::IntoNeighborsDirected;
+use std::cell::Cell;
 use std::collections::HashMap;
 
 pub type Bytecode = Vec<OpCode>;
@@ -99,9 +99,15 @@ impl Generator {
         match expr {
             Expr::Binary(bin) => self.gen_bin_bytecode(bin, bytecode),
             Expr::Unary(un) => self.gen_unary_bytecode(un, bytecode),
-            Expr::Call(_) => { todo!() },
-            Expr::Stmt(stmt) => { todo!() },
-            _ => { panic!("todo: {expr:?}") },
+            Expr::Call(_) => {
+                todo!()
+            }
+            Expr::Stmt(stmt) => {
+                todo!()
+            }
+            _ => {
+                panic!("todo: {expr:?}")
+            }
         }
     }
 
@@ -115,16 +121,9 @@ impl Generator {
         idx
     }
 
-    pub fn gen_var_assign_bytecode(
-        &mut self,
-        name: Symbol,
-        val: ExprId,
-        bytecode: &mut Bytecode,
-    ) {
+    pub fn gen_var_assign_bytecode(&mut self, name: Symbol, val: ExprId, bytecode: &mut Bytecode) {
         let reg = self.assign_var_to_reg(name);
         bytecode.push(OpCode::LoadVal(reg, val))
-
-
     }
 
     pub fn gen_func_decl_bytecode(&self, cfg: &CFG, bytecode: &mut Bytecode) {}
@@ -140,7 +139,6 @@ impl Generator {
         };
         bytecode.push(opcode);
     }
-
 
     pub fn gen_bytecode_for_node_and_edges(
         &mut self,
@@ -240,7 +238,6 @@ pub enum OpCode {
     //    Pow(RegIdx, RegIdx, RegIdx),
     //    BNot(RegIdx, RegIdx,
 }
-
 
 impl Into<RegOrExpr> for u8 {
     fn into(self) -> RegOrExpr {
