@@ -1,9 +1,8 @@
 use anyhow::Result;
-use parser::Parser;
-use parser::scanner::Scanner;
 use cfg::CFGBuilder;
 use codegen::Generator;
-
+use parser::Parser;
+use parser::scanner::Scanner;
 
 fn main() -> Result<()> {
     let mut cfg = build_cfg();
@@ -12,7 +11,6 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-
 
 pub fn prep_parser_cfg() -> Parser {
     static SOURCE: &str = "
@@ -51,4 +49,3 @@ pub fn build_cfg() -> CFGBuilder {
     cfg_builder
 }
 pub fn test() {}
-
