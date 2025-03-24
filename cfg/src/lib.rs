@@ -575,7 +575,7 @@ mod cfg_tests {
 
         assert_eq!(
             cfg_builder.func_to_cfg[cfg_builder.current_func].node_count(),
-            cfg_builder.func_to_cfg[cfg_builder.current_node]
+            cfg_builder.func_to_ssa[cfg_builder.current_func]
                 .sealed_blocks
                 .len(),
         );
