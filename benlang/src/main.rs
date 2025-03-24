@@ -1,6 +1,5 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::Generator;
 use parser::Parser;
 use parser::scanner::Scanner;
 
@@ -34,8 +33,8 @@ pub fn prep_parser_cfg() -> Parser {
     let mut scanner = Scanner::new(SOURCE);
     scanner.scan();
 
-    let mut parser = Parser::new(scanner.tokens, scanner.interner);
-    parser
+    
+    Parser::new(scanner.tokens, scanner.interner)
 }
 pub fn build_cfg() -> CFGBuilder {
     let mut parser = prep_parser_cfg();
@@ -45,7 +44,7 @@ pub fn build_cfg() -> CFGBuilder {
     let func_data = parser.func_data;
     let func_pool = parser.func_pool;
 
-    let cfg_builder = CFGBuilder::new(parser.interner, main, func_data, func_pool);
-    cfg_builder
+    
+    CFGBuilder::new(parser.interner, main, func_data, func_pool)
 }
 pub fn test() {}
