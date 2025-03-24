@@ -1,11 +1,9 @@
-use crate::ExprPool;
-use crate::expr;
 
 use crate::expr::BinaryOp;
 
 use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Result, anyhow};
 use std::mem::discriminant;
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 

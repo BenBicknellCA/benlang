@@ -1,20 +1,21 @@
 use anyhow::{Result, anyhow};
 use parser::ExprPool;
+use parser::expr::Assign;
 use parser::expr::Expr;
 use parser::expr_parser::ExprId;
-use parser::object::Function;
+use parser::object::FuncId;
 use parser::scanner::Symbol;
 use parser::stmt::Stmt;
 use parser::value::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum HIR {
     Expr(ExprId),
     Return0,
     Return1(ExprId),
     Print(ExprId),
-    Var(Symbol, ExprId),
-    DeclareFunc(Function),
+    Var(Assign),
+    DeclareFunc(FuncId),
 }
 
 impl HIR {
@@ -23,7 +24,7 @@ impl HIR {
             HIR::Expr(_) => HIR::Expr(new_expr),
             HIR::Return1(_) => HIR::Return1(new_expr),
             HIR::Print(_) => HIR::Print(new_expr),
-            HIR::Var(name, val) => HIR::Var(name, new_expr),
+            HIR::Var(assign) => HIR::Var(Assign::new(assign.name, new_expr)),
             _ => {
                 return Err(anyhow!("cannot swap expr from {:?}", self));
             }
@@ -32,7 +33,7 @@ impl HIR {
     }
     pub fn get_name_val(stmt: &Stmt, expr_pool: &crate::ExprPool) -> Option<(Symbol, ExprId)> {
         match stmt {
-            Stmt::Var(name, val) => Some((*name, *val)),
+            Stmt::Var(assign) => Some((assign.name, assign.val)),
             Stmt::Expr(expr) => {
                 if let Expr::Assign(assgn) = &expr_pool[*expr] {
                     return Some((assgn.name, assgn.val));
@@ -47,7 +48,7 @@ impl HIR {
             HIR::Expr(expr) => expr,
             HIR::Return1(expr) => expr,
             HIR::Print(expr) => expr,
-            HIR::Var(_, expr) => expr,
+            HIR::Var(assign) => &assign.val,
             _ => return Err(anyhow!("cannot get expr from {:?}", self)),
         };
         Ok(*id)
@@ -68,7 +69,7 @@ impl TryFrom<&Stmt> for HIR {
         let val = match stmt {
             Stmt::Expr(expr) => HIR::Expr(*expr),
             Stmt::Print(val) => HIR::Print(*val),
-            Stmt::Var(name, val) => HIR::Var(*name, *val),
+            Stmt::Var(assign) => HIR::Var(*assign),
             _ => return Err(()),
         };
         Ok(val)

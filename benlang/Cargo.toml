@@ -6,4 +6,6 @@ edition = "2024"
 [dependencies]
 parser = { path = "../parser" }
 cfg = { path = "../cfg" }
+codegen = { path = "../codegen" }
 petgraph = "0.7.1"
+anyhow = "1.0.97"

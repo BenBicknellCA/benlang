@@ -13,7 +13,7 @@ pub enum TermKind {
 
 #[derive(Default, Debug)]
 pub struct BasicBlock {
-    statements: Vec<HIR>,
+    pub statements: Vec<HIR>,
     pub node_index: NodeIndex,
     pub term_kind: Option<TermKind>,
 }

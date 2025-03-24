@@ -9,7 +9,7 @@ pub mod value;
 use crate::expr::*;
 use crate::expr_parser::*;
 use crate::object::Function;
-use crate::object::{FuncId, Object};
+use crate::object::FuncId;
 use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;
@@ -396,20 +396,20 @@ impl Parser {
 }
 
 #[cfg(test)]
-mod parser_tests {
+pub(crate) mod parser_tests {
     use super::*;
     use crate::scanner::Scanner;
 
-    fn prep_parser_tests(source: &'static str) -> Parser {
+    pub fn prep_parser_tests(source: &'static str) -> Parser {
         let mut scanner = Scanner::new(source);
         scanner.scan();
 
-        let mut parser = Parser::new(scanner.tokens, scanner.interner);
+        let parser = Parser::new(scanner.tokens, scanner.interner);
         parser
     }
 
     #[test]
-    fn parse_func() {
+    pub fn parse_func() {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {    
                     if (true == true) {
@@ -433,7 +433,7 @@ mod parser_tests {
 
     fn parse_block() {
         static SOURCE: &str = "{}";
-        let mut parser = prep_parser_tests(SOURCE);
+        let parser = prep_parser_tests(SOURCE);
         // TODO
     }
 }

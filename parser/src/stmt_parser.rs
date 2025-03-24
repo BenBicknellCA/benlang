@@ -103,7 +103,7 @@ impl Parser {
         };
 
         self.consume(Token::Semicolon)?;
-        self.insert_stmt(Stmt::Var(var_name, var_val))
+        self.insert_stmt(Stmt::Var(Assign::new(var_name, var_val)))
     }
 
     fn while_statement(&mut self) -> Result<StmtId> {
