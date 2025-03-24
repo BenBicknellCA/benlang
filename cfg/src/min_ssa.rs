@@ -12,7 +12,7 @@ impl CFGBuilder {
         let blocks: Vec<NodeIndex> = phi_functions
             .iter()
             .map(|phi| {
-                let block = self.ssa.phis_to_block[*phi];
+                let block = self.func_to_ssa[self.current_func].phis_to_block[*phi];
                 let vec: &mut Vec<PhiId> = if let Some(phi_vec) = blocks_to_phi.get_mut(&block) {
                     phi_vec
                 } else {
@@ -40,7 +40,7 @@ impl CFGBuilder {
         for component in scc {
             let phis_in_component = &blocks_to_phi[component];
             for phi in phis_in_component {
-                self.ssa.phi_operands[*phi] = vec![op];
+                self.func_to_ssa[self.current_func].phi_operands[*phi] = vec![op];
             }
         }
     }
@@ -58,7 +58,7 @@ impl CFGBuilder {
         for (node, phi_vec) in blocks_to_phi {
             for phi in phi_vec {
                 let mut is_inner = true;
-                for opnd in &self.ssa.phi_operands[*phi] {
+                for opnd in &self.func_to_ssa[self.current_func].phi_operands[*phi] {
                     if !scc.contains(node) {
                         outer_ops.push(opnd);
                         is_inner = false;
@@ -88,13 +88,15 @@ impl CFGBuilder {
         let mut edges = HashSet::new();
 
         for node in node_map {
-            let mut neighbours = self.cfg.neighbors_undirected(*node).detach();
-            while let Some(edge) = neighbours.next_edge(&self.cfg) {
+            let mut neighbours = self.func_to_cfg[self.current_func]
+                .neighbors_undirected(*node)
+                .detach();
+            while let Some(edge) = neighbours.next_edge(&self.func_to_cfg[self.current_func]) {
                 edges.insert(edge);
             }
         }
 
-        self.cfg.filter_map(
+        self.func_to_cfg[self.current_func].filter_map(
             |node_index, weight| {
                 if node_map.contains(&node_index) {
                     Some(node_index)

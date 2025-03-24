@@ -19,14 +19,14 @@ use std::collections::HashMap;
 
 pub type Bytecode = Vec<OpCode>;
 
-struct Generator {
+pub struct Generator {
     symbol_table: SymbolTable,
     cfg: CFG,
     func_data: FuncData,
     expr_pool: ExprPool,
     func_pool: FuncPool,
     ssa: SSABuilder,
-    func_proto: FuncProto,
+    func_proto: ActivationRecord,
 }
 
 impl Generator {
@@ -49,9 +49,9 @@ impl Generator {
             func_proto: func.into(),
         }
     }
-    pub fn generate_func_proto(&mut self, cfg: &CFG, func_id: FuncId) -> FuncProto {
+    pub fn generate_func_proto(&mut self, cfg: &CFG, func_id: FuncId) -> ActivationRecord {
         let func: &Function = &self.func_pool[func_id];
-        let func_state: FuncProto = func.into();
+        let func_state: ActivationRecord = func.into();
         let root = NodeIndex::new(0);
         let graph = cfg.neighbors_directed(root, Direction::Outgoing);
         let mut bytecode = Vec::new();
@@ -131,7 +131,9 @@ impl Generator {
     pub fn gen_bytecode_for_hir(&mut self, node: NodeIndex, hir: &HIR, bytecode: &mut Bytecode) {
         let opcode = match hir {
             HIR::Expr(expr_id) => return self.gen_expr_bytecode(*expr_id, bytecode),
-            HIR::Var(name, val) => return self.gen_var_assign_bytecode(*name, *val, bytecode),
+            HIR::Var(assign) => {
+                return self.gen_var_assign_bytecode(assign.name, assign.val, bytecode);
+            }
             HIR::DeclareFunc(func) => todo!(),
             HIR::Return0 => OpCode::Return0,
             HIR::Return1(val) => OpCode::Return1(RegOrExpr::Expr(*val)),
@@ -152,7 +154,7 @@ impl Generator {
     }
 }
 
-struct FuncProto {
+struct ActivationRecord {
     pub bytecode: Bytecode,
     pub registers: [Value; 255],
     pub free_reg: Cell<u8>,
@@ -161,7 +163,7 @@ struct FuncProto {
     pub arity: u8,
 }
 
-impl FuncProto {
+impl ActivationRecord {
     pub fn new(function: &Function, bytecode: Vec<OpCode>) -> Self {
         function.into()
     }
@@ -173,7 +175,7 @@ impl FuncProto {
     }
 }
 
-impl From<&Function> for FuncProto {
+impl From<&Function> for ActivationRecord {
     fn from(val: &Function) -> Self {
         const NIL: Value = Value::Literal(Literal::Nil);
         let mut var_to_reg: HashMap<Symbol, u8> = HashMap::new();
@@ -184,7 +186,7 @@ impl From<&Function> for FuncProto {
                 count += 1;
             }
         }
-        FuncProto {
+        ActivationRecord {
             bytecode: Vec::new(),
             registers: [NIL; 255],
             free_reg: Cell::new(count),
@@ -248,5 +250,26 @@ impl From<u8> for RegOrExpr {
 impl From<ExprId> for RegOrExpr {
     fn from(val: ExprId) -> Self {
         RegOrExpr::Expr(val)
+    }
+}
+
+#[cfg(test)]
+mod codegen_tests {
+    use super::*;
+
+    pub fn binary() {
+        let SOURCE: &'static str = "func test_func() {
+            var test_var = 0;
+            while (true && true) {
+                if (false) {
+                    test_var = 11223 * 99;
+                } else {
+                    test_var = 100 - 22;
+                }
+            }
+            test_var + 3000;
+            var new_var = test_var + 1;
+            }
+            test_func()";
     }
 }

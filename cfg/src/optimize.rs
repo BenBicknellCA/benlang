@@ -1,12 +1,81 @@
+use crate::CFG;
 use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
+use crate::HIR;
+use crate::NodeIndex;
+use crate::ssa::PhiOrExpr;
+use crate::ssa::SSABuilder;
 use anyhow::{Result, anyhow};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
+use parser::scanner::Symbol;
 use parser::value::{Literal, Value};
 
 impl CFGBuilder {
+    pub fn propagate_copy_id(
+        expr_pool: &mut ExprPool,
+        ssa: &mut SSABuilder,
+        cfg: &CFG,
+        node: NodeIndex,
+        assign_id: ExprId,
+    ) -> Result<()> {
+        if let Some(Expr::Assign(assign)) = expr_pool.get_mut(assign_id) {
+            CFGBuilder::replace_assign_val(ssa, cfg, node, assign)?;
+        }
+        Ok(())
+    }
+
+    pub fn replace_assign_val(
+        ssa: &mut SSABuilder,
+        cfg: &CFG,
+        node: NodeIndex,
+        assign: &mut Assign,
+    ) -> Result<()> {
+        if let Ok(phi_or_expr) = ssa.read_variable(assign.name, node, &cfg) {
+            match phi_or_expr {
+                PhiOrExpr::Phi(phi) => {}
+                PhiOrExpr::Expr(new_expr) => {
+                    assign.update_val(new_expr);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    // x = 1;
+    // y = x;
+    // currently value of y is replaced with value of x,
+    // todo: replace all uses of y with x
+    pub fn propagate_copy_hir(
+        expr_pool: &mut ExprPool,
+        ssa: &mut SSABuilder,
+        cfg: &CFG,
+        node: NodeIndex,
+        hir: &mut HIR,
+    ) -> Result<()> {
+        match hir {
+            HIR::Expr(expr) => {
+                CFGBuilder::propagate_copy_id(expr_pool, ssa, &cfg, node, *expr)?;
+            }
+            HIR::Var(assign) => {
+                CFGBuilder::replace_assign_val(ssa, cfg, node, assign)?;
+            }
+            _ => {}
+        };
+
+        //        if let Some(Expr::Assign(assign)) = self.func_data.expr_pools[self.current_func].get_mut(assign_id) {
+        //            if let Ok(phi_or_expr) = self.ssa.read_variable(assign.name, node, &self.cfg) {
+        //                if !phi_or_expr.is_a_phi() {
+        //                    let new_expr = phi_or_expr.get_expr()?;
+        //                    assign.val = new_expr;
+        //                }
+        //            }
+        //        }
+
+        Ok(())
+    }
+
     pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
         match expr_pool[expr_id] {
             Expr::Binary(_) => CFGBuilder::fold_binary(expr_pool, expr_id),
@@ -17,6 +86,7 @@ impl CFGBuilder {
                 CFGBuilder::fold_constant(expr_pool, assign.val)?;
                 let new_assign = Expr::Assign(Assign::new(assign.name, assign.val));
                 expr_pool[expr_id] = new_assign;
+
                 Ok(())
             }
             _ => Ok(()),

@@ -187,14 +187,18 @@ impl Unary {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy, Eq, Ord)]
 pub struct Assign {
     pub name: Symbol,
     pub val: ExprId,
 }
+
 impl Assign {
     pub fn new(name: Symbol, val: ExprId) -> Self {
         Self { name, val }
+    }
+    pub fn update_val(&mut self, new_val: ExprId) {
+        self.val = new_val;
     }
 }
 
@@ -210,6 +214,5 @@ pub struct Grouping(pub Symbol);
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Call {
     callee: ExprId,
-    paren: Token,
     args: Vec<ExprId>,
 }

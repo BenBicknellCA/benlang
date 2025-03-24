@@ -1,3 +1,4 @@
+use crate::Assign;
 use crate::expr_parser::ExprId;
 use crate::object::FuncId;
 use crate::object::Function;
@@ -11,7 +12,7 @@ pub enum Stmt {
     Expr(ExprId),
     Return0,
     Return1(ExprId),
-    Var(Symbol, ExprId),
+    Var(Assign),
     Print(ExprId),
     Function(FuncId),
     Block(Block),
@@ -98,6 +99,10 @@ impl Block {
             body,
             leaders: Vec::new(),
         }
+    }
+
+    pub fn borrow_stmts(&self) -> &[StmtId] {
+        self.body.as_slice()
     }
 
     //    pub fn get_body_split_at_leaders(&self) -> Vec<&[StmtId]> {

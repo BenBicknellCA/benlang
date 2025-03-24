@@ -1,5 +1,6 @@
 use crate::ir::HIR;
 use anyhow::{Result, anyhow};
+use parser::stmt_parser::StmtId;
 use petgraph::graph::NodeIndex;
 
 #[derive(Debug)]

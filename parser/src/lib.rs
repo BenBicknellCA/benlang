@@ -396,11 +396,11 @@ impl Parser {
 }
 
 #[cfg(test)]
-mod parser_tests {
+pub(crate) mod parser_tests {
     use super::*;
     use crate::scanner::Scanner;
 
-    fn prep_parser_tests(source: &'static str) -> Parser {
+    pub fn prep_parser_tests(source: &'static str) -> Parser {
         let mut scanner = Scanner::new(source);
         scanner.scan();
 
@@ -409,7 +409,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn parse_func() {
+    pub fn parse_func() {
         static SOURCE: &str = "
             func test_func(first_param, second_param) {    
                     if (true == true) {

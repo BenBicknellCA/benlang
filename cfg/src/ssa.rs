@@ -24,15 +24,21 @@ pub enum PhiOrExpr {
 }
 
 impl PhiOrExpr {
-    fn is_a_phi(&self) -> bool {
+    pub fn is_a_phi(&self) -> bool {
         matches!(self, PhiOrExpr::Phi(_))
+    }
+
+    pub fn get_expr(&self) -> Result<ExprId> {
+        match self {
+            PhiOrExpr::Expr(expr) => Ok(*expr),
+            _ => Err(anyhow!("PhiOrExpr is a phi")),
+        }
     }
 }
 
 new_key_type! {pub struct PhiId;}
 
 pub struct SSABuilder {
-    pub symbol_table: SymbolTable,
     pub incomplete_phis: IncompletePhis,
     pub var_defs: VarDefs,
     pub sealed_blocks: SealedBlocks,
@@ -46,9 +52,8 @@ pub struct SSABuilder {
 pub struct User(NodeIndex, Symbol);
 
 impl SSABuilder {
-    pub fn new(symbol_table: SymbolTable, inital_node: NodeIndex, cfg: &CFG) -> Self {
+    pub fn new(inital_node: NodeIndex, cfg: &CFG) -> Self {
         let mut ssa = Self {
-            symbol_table,
             incomplete_phis: IncompletePhis::new(),
             var_defs: VarDefs::new(),
             sealed_blocks: HashSet::new(),
