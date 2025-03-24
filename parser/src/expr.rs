@@ -1,9 +1,8 @@
-use crate::Object;
 use crate::ParseError;
 use crate::Stmt;
 use crate::expr_parser::ExprId;
 
-use crate::scanner::{Symbol, SymbolTable, Token};
+use crate::scanner::{Symbol, Token};
 use crate::value::{Literal, Value};
 
 use anyhow::{Error, Result, anyhow};

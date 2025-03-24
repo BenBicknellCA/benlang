@@ -1,8 +1,6 @@
 use crate::Assign;
 use crate::expr_parser::ExprId;
 use crate::object::FuncId;
-use crate::object::Function;
-use crate::scanner::Symbol;
 use crate::stmt_parser::StmtId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]

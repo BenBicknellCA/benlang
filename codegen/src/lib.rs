@@ -255,7 +255,7 @@ impl From<ExprId> for RegOrExpr {
 
 #[cfg(test)]
 mod codegen_tests {
-    use super::*;
+    
 
     pub fn binary() {
         let SOURCE: &'static str = "func test_func() {

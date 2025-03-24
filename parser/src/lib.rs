@@ -9,7 +9,7 @@ pub mod value;
 use crate::expr::*;
 use crate::expr_parser::*;
 use crate::object::Function;
-use crate::object::{FuncId, Object};
+use crate::object::FuncId;
 use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;
@@ -404,7 +404,7 @@ pub(crate) mod parser_tests {
         let mut scanner = Scanner::new(source);
         scanner.scan();
 
-        let mut parser = Parser::new(scanner.tokens, scanner.interner);
+        let parser = Parser::new(scanner.tokens, scanner.interner);
         parser
     }
 
@@ -433,7 +433,7 @@ pub(crate) mod parser_tests {
 
     fn parse_block() {
         static SOURCE: &str = "{}";
-        let mut parser = prep_parser_tests(SOURCE);
+        let parser = prep_parser_tests(SOURCE);
         // TODO
     }
 }
