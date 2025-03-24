@@ -18,7 +18,6 @@ use parser::stmt_parser::StmtId;
 use parser::{
     ExprPool, FuncData, StmtPool,
     expr::Expr,
-    object::Function,
     stmt::{Block, Conditional, If, Stmt, While},
 };
 

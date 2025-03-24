@@ -4,7 +4,6 @@ use parser::expr::Assign;
 use parser::expr::Expr;
 use parser::expr_parser::ExprId;
 use parser::object::FuncId;
-use parser::object::Function;
 use parser::scanner::Symbol;
 use parser::stmt::Stmt;
 use parser::value::Value;

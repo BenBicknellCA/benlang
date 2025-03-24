@@ -9,7 +9,7 @@ use anyhow::{Result, anyhow};
 use parser::{
     ExprPool,
     expr_parser::ExprId,
-    scanner::{Symbol, SymbolTable},
+    scanner::Symbol,
 };
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;

@@ -9,7 +9,6 @@ use crate::ssa::SSABuilder;
 use anyhow::{Result, anyhow};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
-use parser::scanner::Symbol;
 use parser::value::{Literal, Value};
 
 impl CFGBuilder {
@@ -32,7 +31,7 @@ impl CFGBuilder {
         node: NodeIndex,
         assign: &mut Assign,
     ) -> Result<()> {
-        if let Ok(phi_or_expr) = ssa.read_variable(assign.name, node, &cfg) {
+        if let Ok(phi_or_expr) = ssa.read_variable(assign.name, node, cfg) {
             match phi_or_expr {
                 PhiOrExpr::Phi(phi) => {}
                 PhiOrExpr::Expr(new_expr) => {
@@ -56,7 +55,7 @@ impl CFGBuilder {
     ) -> Result<()> {
         match hir {
             HIR::Expr(expr) => {
-                CFGBuilder::propagate_copy_id(expr_pool, ssa, &cfg, node, *expr)?;
+                CFGBuilder::propagate_copy_id(expr_pool, ssa, cfg, node, *expr)?;
             }
             HIR::Var(assign) => {
                 CFGBuilder::replace_assign_val(ssa, cfg, node, assign)?;
