@@ -8,7 +8,7 @@ use parser::scanner::Symbol;
 use parser::stmt::Stmt;
 use parser::value::Value;
 use petgraph::graph::NodeIndex;
-use slotmap::{SlotMap, new_key_type};
+use slotmap::new_key_type;
 
 new_key_type! {pub struct ConstId;}
 

@@ -238,7 +238,7 @@ impl CFGBuilder {
             .expect("cond id")
     }
 
-    fn expr_to_ir(&self, cond: ExprId) -> Result<(HIR)> {
+    fn expr_to_ir(&self, cond: ExprId) -> Result<HIR> {
         if let Ok(hir) = HIR::try_from(&Stmt::Expr(cond)) {
             return Ok(hir);
         }
@@ -261,7 +261,7 @@ impl CFGBuilder {
         // if cond is false do not process first branch
         let skip_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
             .get_bool()
-            .is_ok_and(|cond| cond == false);
+            .is_ok_and(|cond| !cond);
         //        let do_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
         //            .get_bool()
         //            .is_ok_and(|res| res);
@@ -310,16 +310,12 @@ impl CFGBuilder {
             self.func_to_ssa[self.current_func]
                 .seal_block(else_entry, &self.func_to_cfg[self.current_func])?;
             self.stmts(&second_branch_block.body)?;
-            println!(
-                "stmts: {:?}",
-                &self.func_to_cfg[self.current_func][self.current_node].statements
-            );
             self.func_to_cfg[self.current_func].add_edge(self.current_node, if_exit, None);
             jmp_node = Some(self.current_node);
         }
 
         if !skip_than_branch {
-            let mut cond_ir = self.expr_to_ir(if_stmt.cond());
+            let cond_ir = self.expr_to_ir(if_stmt.cond());
             CFGBuilder::add_cond_to_node(
                 &mut self.func_data.expr_pools[self.current_func],
                 &mut self.func_to_ssa[self.current_func],
@@ -340,7 +336,7 @@ impl CFGBuilder {
 
         let skip_while_body = self.get_current_expr_pool()[while_stmt.cond()]
             .get_bool()
-            .is_ok_and(|cond| cond == false);
+            .is_ok_and(|cond| !cond);
 
         let while_entry = self.current_node;
 

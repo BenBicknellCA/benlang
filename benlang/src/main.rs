@@ -1,6 +1,5 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::ActivationRecord;
 use codegen::Generator;
 use parser::Parser;
 use parser::scanner::Scanner;
@@ -37,7 +36,7 @@ fn main() -> Result<()> {
             cfg,
             func_data,
             ssa,
-            &func_pool,
+            func_pool,
             func_id,
         );
         generate.generate_func_proto(func_id);

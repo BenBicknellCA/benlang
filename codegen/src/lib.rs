@@ -1,29 +1,23 @@
+use anyhow::{Result, anyhow};
 use cfg::CFG;
-use anyhow::{Result, Error, anyhow};
-use cfg::basic_block::{BasicBlock, TermKind};
+use cfg::basic_block::BasicBlock;
 use cfg::ir::ConstId;
 use cfg::ir::HIR;
 use cfg::ssa::SSABuilder;
-use parser::ExprPool;
 use parser::FuncData;
 use parser::FuncPool;
-use parser::expr::{Binary, Unary, UnaryOp};
+use parser::expr::{Binary, Unary};
 use parser::expr::{BinaryOp, Expr};
 use parser::expr_parser::ExprId;
 use parser::object::{FuncId, Function};
 use parser::scanner::{Symbol, SymbolTable};
 use parser::value::Literal;
 use parser::value::Value;
-use petgraph::algo::tarjan_scc;
 use petgraph::graph::NodeIndex;
-use petgraph::matrix_graph::Zero;
-use petgraph::visit::{Dfs, Bfs, IntoEdgesDirected};
-use petgraph::visit::{EdgeRef, IntoNeighborsDirected};
-use petgraph::{Direction, EdgeDirection};
-use slotmap::{SlotMap, new_key_type};
+use petgraph::visit::Dfs;
+use slotmap::SlotMap;
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 pub type RegIdx = u8;
 
@@ -160,47 +154,11 @@ impl<'a> Generator<'a> {
             self.patch_sentinal_jmp(*idx, jmp_to);
         }
 
-        println!();
-        println!();
-        println!();
-
-        let mut count = 0;
-        for op in &self.func_proto.bytecode {
-            println!("{count}: {op:?}");
-            count += 1;
-        }
-        println!();
-        println!();
-        println!();
-
-        let exprs = &self.func_data.expr_pools[func_id];
-
-        for (id, expr) in exprs {
-            println!("id: {:?} = {:?}", id, expr);
-        }
-
-        println!();
-        println!();
-        println!();
-
-        for (name, var) in &self.func_proto.var_to_reg {
-            println!("name: {} // var: {var:?}", self.symbol_table.resolve(*name).unwrap());
-        }
-
-        println!();
-        println!();
-        println!();
-        let consts = &self.const_pool;
-
-        for (id, const_) in consts.iter() {
-            println!("id: {:?} = {:?}", id, const_);
-        }
-
     }
 
     pub fn emit_load_const(&mut self, value: &Value) -> Result<RegOrConst> {
         if let Value::Literal(literal) = value {
-        let dst = self.get_free_reg_and_inc();
+            let dst = self.get_free_reg_and_inc();
             let const_id = self.const_pool.insert(*literal);
             self.func_proto.insert_op(OpCode::LoadConst(dst, const_id));
             return Ok(RegOrConst::Reg(dst));
@@ -222,8 +180,8 @@ impl<'a> Generator<'a> {
     pub fn emit_bin_bytecode(&mut self, binary: &Binary) -> Result<RegOrConst> {
         let op = &binary.op;
         let dst = self.get_free_reg_and_inc();
-        let lhs_reg = self.resolve_arg(binary.lhs).into();
-        let rhs_reg = self.resolve_arg(binary.rhs).into();
+        let lhs_reg = self.resolve_arg(binary.lhs);
+        let rhs_reg = self.resolve_arg(binary.rhs);
         let opcode = match op {
             BinaryOp::Plus => OpCode::Add(dst, lhs_reg, rhs_reg),
             BinaryOp::Star => OpCode::Mul(dst, lhs_reg, rhs_reg),
@@ -265,9 +223,7 @@ impl<'a> Generator<'a> {
     pub fn emit_expr_bytecode(&mut self, expr: ExprId) -> Result<RegOrConst> {
         let to_match: &Expr = &self.func_data.expr_pools[self.func_id][expr];
         match to_match {
-            Expr::Binary(bin) => {
-                self.emit_bin_bytecode(bin)
-            }
+            Expr::Binary(bin) => self.emit_bin_bytecode(bin),
             Expr::Unary(un) => self.emit_unary_bytecode(un),
             Expr::Assign(assign) => {
                 let val = self.emit_expr_bytecode(assign.val);
@@ -331,7 +287,9 @@ impl<'a> Generator<'a> {
             HIR::Const(const_id) => {
                 todo!()
             }
-            HIR::Expr(expr_id) => { self.emit_expr_bytecode(*expr_id)?; }
+            HIR::Expr(expr_id) => {
+                self.emit_expr_bytecode(*expr_id)?;
+            }
 
             HIR::Var(assign) => {
                 let val = self.emit_expr_bytecode(assign.val);
@@ -342,17 +300,20 @@ impl<'a> Generator<'a> {
                 //                return self.emit_assign_bytecode(assign.name, RegOrConst::Const(assign.val));
             }
             HIR::DeclareFunc(func) => todo!(),
-            HIR::Return0 => { self.func_proto.insert_op(OpCode::Return0); },
+            HIR::Return0 => {
+                self.func_proto.insert_op(OpCode::Return0);
+            }
             HIR::Return1(val) => {
                 let arg = self.resolve_arg(*val);
                 self.func_proto.insert_op(OpCode::Return1(arg));
-            },
-            HIR::Print(expr) => { OpCode::PrintExpr(*expr); }
+            }
+            HIR::Print(expr) => {
+                OpCode::PrintExpr(*expr);
+            }
             HIR::Jmp(jmp_node) => {
                 jmps.insert(self.func_proto.op_count, *jmp_node);
                 self.func_proto.insert_op(OpCode::Jmp(-1));
             }
-
         };
 
         //        self.func_proto.insert_op(opcode);
