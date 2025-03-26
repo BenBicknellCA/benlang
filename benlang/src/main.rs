@@ -20,28 +20,15 @@ use parser::scanner::Scanner;
 // func_id: FuncId,
 
 fn main() -> Result<()> {
-    let mut activation_records = Vec::new();
     let mut cfg_builder = build_cfg();
     cfg_builder.build_cfgs()?;
-    for func in cfg_builder.func_pool.keys() {
-        let cfg = &cfg_builder.func_to_cfg[func];
-        let func_data = &cfg_builder.func_data;
-        let expr_pool = &cfg_builder.func_pool;
-        let ssa = &cfg_builder.func_to_ssa[func];
-        let func_pool = &cfg_builder.func_pool;
-        let func_id = func;
-        let func = &cfg_builder.func_pool[func];
-        let mut generate = Generator::new(
-            &cfg_builder.symbol_table,
-            cfg,
-            func_data,
-            ssa,
-            func_pool,
-            func_id,
-        );
-        generate.generate_func_proto(func_id);
-        activation_records.push(generate);
-    }
+
+    let mut generator = Generator::new_from_id(&cfg_builder, cfg_builder.func_data.main);
+
+    generator.generate_all_func_protos(&cfg_builder);
+
+    //    generator.generate_all_func_protos();
+
     //    for record in activation_records {
     //        let record = record.func_proto;
     //        println!("{record:?}");
@@ -64,6 +51,7 @@ pub fn prep_parser_cfg() -> Parser {
                     test_var + 3000;
                     var new_var = test_var + 1;
             }
+            test_func(1, 2);
             ";
     let mut scanner = Scanner::new(SOURCE);
     scanner.scan();

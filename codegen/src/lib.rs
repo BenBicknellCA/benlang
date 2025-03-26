@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use cfg::CFG;
+use cfg::CFGBuilder;
 use cfg::basic_block::BasicBlock;
 use cfg::ir::ConstId;
 use cfg::ir::HIR;
@@ -15,7 +16,7 @@ use parser::value::Literal;
 use parser::value::Value;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::Dfs;
-use slotmap::SlotMap;
+use slotmap::{SecondaryMap, SlotMap};
 use std::cell::Cell;
 use std::collections::HashMap;
 
@@ -83,12 +84,11 @@ pub struct Generator<'a> {
     func_data: &'a FuncData,
     ssa: &'a SSABuilder,
     func_pool: &'a FuncPool,
-    pub func_proto: ActivationRecord,
     func_id: FuncId,
-    pub const_pool: SlotMap<ConstId, Literal>,
+    pub func_protos: SecondaryMap<FuncId, FuncProto>,
 }
 
-impl ActivationRecord {}
+impl FuncProto {}
 
 impl<'a> Generator<'a> {
     pub fn new(
@@ -99,7 +99,6 @@ impl<'a> Generator<'a> {
         func_pool: &'a FuncPool,
         func_id: FuncId,
     ) -> Self {
-        let func_proto = &func_pool[func_id];
         Self {
             func_id,
             symbol_table,
@@ -107,27 +106,49 @@ impl<'a> Generator<'a> {
             func_data,
             ssa,
             func_pool,
-            func_proto: func_proto.into(),
-            const_pool: SlotMap::with_key(),
+            func_protos: SecondaryMap::new(),
+        }
+    }
+
+    pub fn prep_for_next_func(&mut self, cfg_builder: &'a CFGBuilder, func_id: FuncId) {
+        self.cfg = &cfg_builder.func_to_cfg[func_id];
+        self.func_data = &cfg_builder.func_data;
+        self.func_id = func_id;
+        self.ssa = &cfg_builder.func_to_ssa[func_id];
+        self.func_pool = &cfg_builder.func_pool;
+    }
+
+    pub fn new_from_id(cfg_builder: &'a CFGBuilder, func_id: FuncId) -> Self {
+        Self {
+            func_id,
+            symbol_table: &cfg_builder.symbol_table,
+            cfg: &cfg_builder.func_to_cfg[func_id],
+            func_data: &cfg_builder.func_data,
+            ssa: &cfg_builder.func_to_ssa[func_id],
+            func_pool: &cfg_builder.func_pool,
+            func_protos: SecondaryMap::new(),
         }
     }
 
     pub fn add_sentinal_jmp_at_idx(&mut self, idx: usize) -> usize {
-        self.func_proto.insert_op_at(idx, OpCode::Jmp(-1))
+        self.func_protos[self.func_id].insert_op_at(idx, OpCode::Jmp(-1))
     }
 
     pub fn add_sentinal_jmp(&mut self) -> usize {
-        self.func_proto.insert_op(OpCode::Jmp(-1))
+        self.func_protos[self.func_id].insert_op(OpCode::Jmp(-1))
     }
 
     pub fn patch_sentinal_jmp(&mut self, jmp_idx: usize, new_val: i32) {
-        if let Some(OpCode::Jmp(jmp_size)) = self.func_proto.bytecode.get_mut(jmp_idx) {
+        if let Some(OpCode::Jmp(jmp_size)) =
+            self.func_protos[self.func_id].bytecode.get_mut(jmp_idx)
+        {
             return *jmp_size = new_val;
         }
         panic!("could not patch sentinal jmp");
     }
     pub fn generate_func_proto(&mut self, func_id: FuncId) {
         let func: &Function = &self.func_pool[func_id];
+        self.func_protos.insert(func_id, func.into());
         let root = NodeIndex::new(0);
         let graph = self.cfg;
 
@@ -137,13 +158,13 @@ impl<'a> Generator<'a> {
         let mut dfs = Dfs::new(graph, root);
 
         while let Some(node) = dfs.next(graph) {
-            let beginning_of_node = self.func_proto.op_count;
+            let beginning_of_node = self.func_protos[self.func_id].op_count;
             beginning_end.insert(node, (beginning_of_node, None));
             let node_weight = &self.cfg[node];
 
             self.gen_bytecode_for_node_and_edges(node, &self.cfg[node], &mut jmps_to_patch);
 
-            beginning_end.get_mut(&node).unwrap().1 = Some(self.func_proto.op_count);
+            beginning_end.get_mut(&node).unwrap().1 = Some(self.func_protos[self.func_id].op_count);
         }
 
         for (idx, node) in &jmps_to_patch {
@@ -153,14 +174,20 @@ impl<'a> Generator<'a> {
 
             self.patch_sentinal_jmp(*idx, jmp_to);
         }
+    }
 
+    pub fn generate_all_func_protos(&mut self, cfg: &'a CFGBuilder) {
+        for key in self.func_pool.keys() {
+            self.prep_for_next_func(cfg, key);
+            self.generate_func_proto(key);
+        }
     }
 
     pub fn emit_load_const(&mut self, value: &Value) -> Result<RegOrConst> {
         if let Value::Literal(literal) = value {
             let dst = self.get_free_reg_and_inc();
-            let const_id = self.const_pool.insert(*literal);
-            self.func_proto.insert_op(OpCode::LoadConst(dst, const_id));
+            let const_id = self.func_protos[self.func_id].const_pool.insert(*literal);
+            self.func_protos[self.func_id].insert_op(OpCode::LoadConst(dst, const_id));
             return Ok(RegOrConst::Reg(dst));
         }
         Err(anyhow!("could not emit load const for {value:?}"))
@@ -170,7 +197,9 @@ impl<'a> Generator<'a> {
         let expr = &self.func_data.expr_pools[self.func_id][expr_id];
         match expr {
             Expr::Value(val) => RegOrConst::Const(self.resolve_value(val)),
-            Expr::Variable(var) => RegOrConst::Reg(self.func_proto.var_to_reg[&var.0]),
+            Expr::Variable(var) => {
+                RegOrConst::Reg(self.func_protos[self.func_id].var_to_reg[&var.0])
+            }
             _ => todo!(),
         }
     }
@@ -196,7 +225,9 @@ impl<'a> Generator<'a> {
             BinaryOp::LessThan => OpCode::Lt(dst, lhs_reg, rhs_reg),
             _ => todo!(),
         };
-        Ok(RegOrConst::Reg(self.func_proto.insert_op(opcode) as u8))
+        Ok(RegOrConst::Reg(
+            self.func_protos[self.func_id].insert_op(opcode) as u8,
+        ))
     }
 
     pub fn emit_unary_bytecode(&mut self, unary: &Unary) -> Result<RegOrConst> {
@@ -211,13 +242,13 @@ impl<'a> Generator<'a> {
 
     pub fn resolve_value(&mut self, value: &Value) -> ConstId {
         match value {
-            Value::Literal(lit) => self.const_pool.insert(*lit),
+            Value::Literal(lit) => self.func_protos[self.func_id].const_pool.insert(*lit),
             Value::Object(obj) => todo!(),
         }
     }
 
     pub fn resolve_var(&self, name: &Symbol) -> Result<u8> {
-        Ok(self.func_proto.var_to_reg[name])
+        Ok(self.func_protos[self.func_id].var_to_reg[name])
     }
 
     pub fn emit_expr_bytecode(&mut self, expr: ExprId) -> Result<RegOrConst> {
@@ -250,26 +281,26 @@ impl<'a> Generator<'a> {
     }
 
     pub fn get_free_reg_and_inc(&self) -> u8 {
-        self.func_proto.get_free_reg_and_inc()
+        self.func_protos[self.func_id].get_free_reg_and_inc()
     }
 
     pub fn assign_var_to_reg(&mut self, var: Symbol) -> u8 {
         let idx = self.get_free_reg_and_inc();
-        self.func_proto.var_to_reg.insert(var, idx);
+        self.func_protos[self.func_id].var_to_reg.insert(var, idx);
         idx
     }
 
     pub fn emit_var_bytecode(&mut self, name: Symbol, val: RegOrConst) -> Result<RegOrConst> {
         let var_reg = self.assign_var_to_reg(name);
         let opcode = OpCode::Move(var_reg, val);
-        self.func_proto.insert_op(opcode);
+        self.func_protos[self.func_id].insert_op(opcode);
         Ok(var_reg.into())
     }
 
     pub fn emit_assign_bytecode(&mut self, name: Symbol, src: RegOrConst) -> Result<RegOrConst> {
-        let dst = self.func_proto.var_to_reg[&name];
+        let dst = self.func_protos[self.func_id].var_to_reg[&name];
         let opcode = OpCode::Move(dst, src);
-        self.func_proto.insert_op(opcode);
+        self.func_protos[self.func_id].insert_op(opcode);
         Ok(RegOrConst::Reg(dst))
     }
 
@@ -301,18 +332,18 @@ impl<'a> Generator<'a> {
             }
             HIR::DeclareFunc(func) => todo!(),
             HIR::Return0 => {
-                self.func_proto.insert_op(OpCode::Return0);
+                self.func_protos[self.func_id].insert_op(OpCode::Return0);
             }
             HIR::Return1(val) => {
                 let arg = self.resolve_arg(*val);
-                self.func_proto.insert_op(OpCode::Return1(arg));
+                self.func_protos[self.func_id].insert_op(OpCode::Return1(arg));
             }
             HIR::Print(expr) => {
                 OpCode::PrintExpr(*expr);
             }
             HIR::Jmp(jmp_node) => {
-                jmps.insert(self.func_proto.op_count, *jmp_node);
-                self.func_proto.insert_op(OpCode::Jmp(-1));
+                jmps.insert(self.func_protos[self.func_id].op_count, *jmp_node);
+                self.func_protos[self.func_id].insert_op(OpCode::Jmp(-1));
             }
         };
 
@@ -329,11 +360,11 @@ impl<'a> Generator<'a> {
         for hir in block.borrow_stmts() {
             self.emit_bytecode(node, hir, jmps);
         }
-        self.func_proto.op_count
+        self.func_protos[self.func_id].op_count
     }
 }
 #[derive(Debug)]
-pub struct ActivationRecord {
+pub struct FuncProto {
     pub bytecode: Bytecode,
     //    pub registers: [Value; 255],
     pub free_reg: Cell<u8>,
@@ -341,9 +372,10 @@ pub struct ActivationRecord {
     pub name: Option<Symbol>,
     pub arity: u8,
     pub op_count: usize,
+    const_pool: SlotMap<ConstId, Literal>,
 }
 
-impl ActivationRecord {
+impl FuncProto {
     pub fn new(function: &Function, bytecode: Vec<OpCode>) -> Self {
         function.into()
     }
@@ -369,7 +401,7 @@ impl ActivationRecord {
     }
 }
 
-impl From<&Function> for ActivationRecord {
+impl From<&Function> for FuncProto {
     fn from(val: &Function) -> Self {
         const NIL: Value = Value::Literal(Literal::Nil);
         let mut var_to_reg: HashMap<Symbol, u8> = HashMap::new();
@@ -380,7 +412,7 @@ impl From<&Function> for ActivationRecord {
                 count += 1;
             }
         }
-        ActivationRecord {
+        FuncProto {
             bytecode: Vec::new(),
             //            registers: [NIL; 255],
             free_reg: Cell::new(count),
@@ -388,6 +420,7 @@ impl From<&Function> for ActivationRecord {
             name: val.name,
             arity: val.arity,
             op_count: 0,
+            const_pool: SlotMap::with_key(),
         }
     }
 }
