@@ -1,7 +1,9 @@
+use anyhow::{Result, anyhow};
 use cfg::CFG;
+use cfg::basic_block::BasicBlock;
+use cfg::ir::ConstId;
 use cfg::ir::HIR;
 use cfg::ssa::SSABuilder;
-use parser::ExprPool;
 use parser::FuncData;
 use parser::FuncPool;
 use parser::expr::{Binary, Unary};
@@ -11,70 +13,175 @@ use parser::object::{FuncId, Function};
 use parser::scanner::{Symbol, SymbolTable};
 use parser::value::Literal;
 use parser::value::Value;
-use petgraph::Direction;
 use petgraph::graph::NodeIndex;
-use petgraph::visit::IntoNeighborsDirected;
+use petgraph::visit::Dfs;
+use slotmap::SlotMap;
 use std::cell::Cell;
 use std::collections::HashMap;
 
-pub type Bytecode = Vec<OpCode>;
+pub type RegIdx = u8;
 
-pub struct Generator {
-    symbol_table: SymbolTable,
-    cfg: CFG,
-    func_data: FuncData,
-    expr_pool: ExprPool,
-    func_pool: FuncPool,
-    ssa: SSABuilder,
-    func_proto: ActivationRecord,
+pub type PIdx = i32;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RegOrConst {
+    Reg(RegIdx),
+    Const(ConstId),
 }
 
-impl Generator {
+pub type Bytecode = Vec<OpCode>;
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum OpCode {
+    // dst , src
+    Move(RegIdx, RegOrConst),
+    LoadConst(RegIdx, ConstId),
+    LoadTrue(RegIdx),
+    LoadFalse(RegIdx),
+    LoadNil(RegIdx),
+    Add(RegIdx, RegOrConst, RegOrConst),
+    Sub(RegIdx, RegOrConst, RegOrConst),
+    Mul(RegIdx, RegOrConst, RegOrConst),
+    Div(RegIdx, RegOrConst, RegOrConst),
+    Mod(RegIdx, RegOrConst, RegOrConst),
+    And(RegIdx, RegOrConst, RegOrConst),
+    Or(RegIdx, RegOrConst, RegOrConst),
+    Eq(RegIdx, RegOrConst, RegOrConst),
+    Ne(RegIdx, RegOrConst, RegOrConst),
+    Lt(RegIdx, RegOrConst, RegOrConst),
+    Le(RegIdx, RegOrConst, RegOrConst),
+    Gt(RegIdx, RegOrConst, RegOrConst),
+    Ge(RegIdx, RegOrConst, RegOrConst),
+    BAnd(RegIdx, RegOrConst, RegOrConst),
+    BOr(RegIdx, RegOrConst, RegOrConst),
+    Not(RegOrConst),
+    Neg(RegOrConst),
+    Jmp(PIdx),
+    Return0,
+    Return1(RegOrConst),
+    PrintExpr(ExprId),
+    //    Div(RegIdx, RegIdx, RegIdx),
+    //    Mod(RegIdx, RegIdx, RegIdx),
+    //    Pow(RegIdx, RegIdx, RegIdx),
+    //    BNot(RegIdx, RegIdx,
+}
+
+impl From<u8> for RegOrConst {
+    fn from(val: u8) -> Self {
+        RegOrConst::Reg(val)
+    }
+}
+
+impl From<ConstId> for RegOrConst {
+    fn from(val: ConstId) -> Self {
+        RegOrConst::Const(val)
+    }
+}
+
+pub struct Generator<'a> {
+    symbol_table: &'a SymbolTable,
+    cfg: &'a CFG,
+    func_data: &'a FuncData,
+    ssa: &'a SSABuilder,
+    func_pool: &'a FuncPool,
+    pub func_proto: ActivationRecord,
+    func_id: FuncId,
+    pub const_pool: SlotMap<ConstId, Literal>,
+}
+
+impl ActivationRecord {}
+
+impl<'a> Generator<'a> {
     pub fn new(
-        symbol_table: SymbolTable,
-        cfg: CFG,
-        func_data: FuncData,
-        expr_pool: ExprPool,
-        ssa: SSABuilder,
-        func_pool: FuncPool,
-        func: &Function,
+        symbol_table: &'a SymbolTable,
+        cfg: &'a CFG,
+        func_data: &'a FuncData,
+        ssa: &'a SSABuilder,
+        func_pool: &'a FuncPool,
+        func_id: FuncId,
     ) -> Self {
+        let func_proto = &func_pool[func_id];
         Self {
+            func_id,
             symbol_table,
             cfg,
             func_data,
-            expr_pool,
             ssa,
             func_pool,
-            func_proto: func.into(),
+            func_proto: func_proto.into(),
+            const_pool: SlotMap::with_key(),
         }
-    }
-    pub fn generate_func_proto(&mut self, cfg: &CFG, func_id: FuncId) -> ActivationRecord {
-        let func: &Function = &self.func_pool[func_id];
-        let func_state: ActivationRecord = func.into();
-        let root = NodeIndex::new(0);
-        let graph = cfg.neighbors_directed(root, Direction::Outgoing);
-        let mut bytecode = Vec::new();
-        for node in graph {
-            self.gen_bytecode_for_node_and_edges(node, cfg[node].borrow_stmts(), &mut bytecode);
-        }
-        func_state
     }
 
-    pub fn gen_load(&self, bytecode: &mut Bytecode, expr: ExprId) -> u8 {
-        let dst = self.get_free_reg_and_inc();
-        bytecode.push(OpCode::LoadVal(dst, expr));
-        dst
+    pub fn add_sentinal_jmp_at_idx(&mut self, idx: usize) -> usize {
+        self.func_proto.insert_op_at(idx, OpCode::Jmp(-1))
+    }
+
+    pub fn add_sentinal_jmp(&mut self) -> usize {
+        self.func_proto.insert_op(OpCode::Jmp(-1))
+    }
+
+    pub fn patch_sentinal_jmp(&mut self, jmp_idx: usize, new_val: i32) {
+        if let Some(OpCode::Jmp(jmp_size)) = self.func_proto.bytecode.get_mut(jmp_idx) {
+            return *jmp_size = new_val;
+        }
+        panic!("could not patch sentinal jmp");
+    }
+    pub fn generate_func_proto(&mut self, func_id: FuncId) {
+        let func: &Function = &self.func_pool[func_id];
+        let root = NodeIndex::new(0);
+        let graph = self.cfg;
+
+        let mut beginning_end: HashMap<NodeIndex, (usize, Option<usize>)> = HashMap::new();
+        let mut jmps_to_patch: HashMap<usize, NodeIndex> = HashMap::new();
+
+        let mut dfs = Dfs::new(graph, root);
+
+        while let Some(node) = dfs.next(graph) {
+            let beginning_of_node = self.func_proto.op_count;
+            beginning_end.insert(node, (beginning_of_node, None));
+            let node_weight = &self.cfg[node];
+
+            self.gen_bytecode_for_node_and_edges(node, &self.cfg[node], &mut jmps_to_patch);
+
+            beginning_end.get_mut(&node).unwrap().1 = Some(self.func_proto.op_count);
+        }
+
+        for (idx, node) in &jmps_to_patch {
+            let node_end = beginning_end[node].1.unwrap();
+
+            let jmp_to = node_end as i32 - *idx as i32;
+
+            self.patch_sentinal_jmp(*idx, jmp_to);
+        }
+
+    }
+
+    pub fn emit_load_const(&mut self, value: &Value) -> Result<RegOrConst> {
+        if let Value::Literal(literal) = value {
+            let dst = self.get_free_reg_and_inc();
+            let const_id = self.const_pool.insert(*literal);
+            self.func_proto.insert_op(OpCode::LoadConst(dst, const_id));
+            return Ok(RegOrConst::Reg(dst));
+        }
+        Err(anyhow!("could not emit load const for {value:?}"))
+    }
+
+    pub fn resolve_arg(&mut self, expr_id: ExprId) -> RegOrConst {
+        let expr = &self.func_data.expr_pools[self.func_id][expr_id];
+        match expr {
+            Expr::Value(val) => RegOrConst::Const(self.resolve_value(val)),
+            Expr::Variable(var) => RegOrConst::Reg(self.func_proto.var_to_reg[&var.0]),
+            _ => todo!(),
+        }
     }
 
     pub fn make_op_args() {}
 
-    pub fn gen_bin_bytecode(&self, binary: &Binary, bytecode: &mut Bytecode) {
+    pub fn emit_bin_bytecode(&mut self, binary: &Binary) -> Result<RegOrConst> {
         let op = &binary.op;
-        let rhs = &binary.rhs;
         let dst = self.get_free_reg_and_inc();
-        let lhs_reg = self.gen_load(bytecode, binary.lhs).into();
-        let rhs_reg = self.gen_load(bytecode, binary.rhs).into();
+        let lhs_reg = self.resolve_arg(binary.lhs);
+        let rhs_reg = self.resolve_arg(binary.rhs);
         let opcode = match op {
             BinaryOp::Plus => OpCode::Add(dst, lhs_reg, rhs_reg),
             BinaryOp::Star => OpCode::Mul(dst, lhs_reg, rhs_reg),
@@ -89,24 +196,55 @@ impl Generator {
             BinaryOp::LessThan => OpCode::Lt(dst, lhs_reg, rhs_reg),
             _ => todo!(),
         };
-        bytecode.push(opcode);
+        Ok(RegOrConst::Reg(self.func_proto.insert_op(opcode) as u8))
     }
 
-    pub fn gen_unary_bytecode(&self, unary: &Unary, bytecode: &mut Bytecode) {}
+    pub fn emit_unary_bytecode(&mut self, unary: &Unary) -> Result<RegOrConst> {
+        todo!()
+        //        let op = &unary.op; let dst = self.gen_load(unary.opnd);
+        //        let opcode = match op {
+        //            UnaryOp::Bang => OpCode::Not(RegOrExpr::Reg(dst)),
+        //            UnaryOp::Minus => OpCode::Neg(RegOrExpr::Reg(dst)),
+        //        };
+        //        self.func_proto.insert_op(opcode)
+    }
 
-    pub fn gen_expr_bytecode(&self, expr: ExprId, bytecode: &mut Bytecode) {
-        let expr = &self.expr_pool[expr];
-        match expr {
-            Expr::Binary(bin) => self.gen_bin_bytecode(bin, bytecode),
-            Expr::Unary(un) => self.gen_unary_bytecode(un, bytecode),
+    pub fn resolve_value(&mut self, value: &Value) -> ConstId {
+        match value {
+            Value::Literal(lit) => self.const_pool.insert(*lit),
+            Value::Object(obj) => todo!(),
+        }
+    }
+
+    pub fn resolve_var(&self, name: &Symbol) -> Result<u8> {
+        Ok(self.func_proto.var_to_reg[name])
+    }
+
+    pub fn emit_expr_bytecode(&mut self, expr: ExprId) -> Result<RegOrConst> {
+        let to_match: &Expr = &self.func_data.expr_pools[self.func_id][expr];
+        match to_match {
+            Expr::Binary(bin) => self.emit_bin_bytecode(bin),
+            Expr::Unary(un) => self.emit_unary_bytecode(un),
+            Expr::Assign(assign) => {
+                let val = self.emit_expr_bytecode(assign.val);
+                self.emit_assign_bytecode(assign.name, val?)
+            }
             Expr::Call(_) => {
                 todo!()
             }
             Expr::Stmt(stmt) => {
                 todo!()
             }
+            Expr::Variable(var) => {
+                //                let idx = self.resolve_var(&var.0);
+                Ok(RegOrConst::Reg(self.resolve_var(&var.0)?))
+            }
+            Expr::Value(val) => {
+                self.emit_load_const(val)
+                //                self.func_proto.op_count
+            }
             _ => {
-                panic!("todo: {expr:?}")
+                panic!("todo: {to_match:?}")
             }
         }
     }
@@ -121,46 +259,88 @@ impl Generator {
         idx
     }
 
-    pub fn gen_var_assign_bytecode(&mut self, name: Symbol, val: ExprId, bytecode: &mut Bytecode) {
-        let reg = self.assign_var_to_reg(name);
-        bytecode.push(OpCode::LoadVal(reg, val))
+    pub fn emit_var_bytecode(&mut self, name: Symbol, val: RegOrConst) -> Result<RegOrConst> {
+        let var_reg = self.assign_var_to_reg(name);
+        let opcode = OpCode::Move(var_reg, val);
+        self.func_proto.insert_op(opcode);
+        Ok(var_reg.into())
     }
 
-    pub fn gen_func_decl_bytecode(&self, cfg: &CFG, bytecode: &mut Bytecode) {}
+    pub fn emit_assign_bytecode(&mut self, name: Symbol, src: RegOrConst) -> Result<RegOrConst> {
+        let dst = self.func_proto.var_to_reg[&name];
+        let opcode = OpCode::Move(dst, src);
+        self.func_proto.insert_op(opcode);
+        Ok(RegOrConst::Reg(dst))
+    }
 
-    pub fn gen_bytecode_for_hir(&mut self, node: NodeIndex, hir: &HIR, bytecode: &mut Bytecode) {
-        let opcode = match hir {
-            HIR::Expr(expr_id) => return self.gen_expr_bytecode(*expr_id, bytecode),
+    pub fn gen_func_decl_bytecode(&self, cfg: &CFG, bytecode: &mut Bytecode) -> usize {
+        todo!()
+    }
+
+    pub fn emit_bytecode(
+        &mut self,
+        node: NodeIndex,
+        hir: &HIR,
+        jmps: &mut HashMap<usize, NodeIndex>,
+    ) -> Result<()> {
+        match hir {
+            HIR::Const(const_id) => {
+                todo!()
+            }
+            HIR::Expr(expr_id) => {
+                self.emit_expr_bytecode(*expr_id)?;
+            }
+
             HIR::Var(assign) => {
-                return self.gen_var_assign_bytecode(assign.name, assign.val, bytecode);
+                let val = self.emit_expr_bytecode(assign.val);
+                self.emit_var_bytecode(assign.name, val?)?;
+            }
+            HIR::Assign(assign) => {
+                todo!()
+                //                return self.emit_assign_bytecode(assign.name, RegOrConst::Const(assign.val));
             }
             HIR::DeclareFunc(func) => todo!(),
-            HIR::Return0 => OpCode::Return0,
-            HIR::Return1(val) => OpCode::Return1(RegOrExpr::Expr(*val)),
-            HIR::Print(expr) => OpCode::PrintExpr(*expr),
+            HIR::Return0 => {
+                self.func_proto.insert_op(OpCode::Return0);
+            }
+            HIR::Return1(val) => {
+                let arg = self.resolve_arg(*val);
+                self.func_proto.insert_op(OpCode::Return1(arg));
+            }
+            HIR::Print(expr) => {
+                OpCode::PrintExpr(*expr);
+            }
+            HIR::Jmp(jmp_node) => {
+                jmps.insert(self.func_proto.op_count, *jmp_node);
+                self.func_proto.insert_op(OpCode::Jmp(-1));
+            }
         };
-        bytecode.push(opcode);
+
+        //        self.func_proto.insert_op(opcode);
+        Ok(())
     }
 
     pub fn gen_bytecode_for_node_and_edges(
         &mut self,
         node: NodeIndex,
-        block: &[HIR],
-        bytecode: &mut Bytecode,
-    ) {
-        for hir in block {
-            self.gen_bytecode_for_hir(node, hir, bytecode);
+        block: &BasicBlock,
+        jmps: &mut HashMap<usize, NodeIndex>,
+    ) -> usize {
+        for hir in block.borrow_stmts() {
+            self.emit_bytecode(node, hir, jmps);
         }
+        self.func_proto.op_count
     }
 }
-
-struct ActivationRecord {
+#[derive(Debug)]
+pub struct ActivationRecord {
     pub bytecode: Bytecode,
-    pub registers: [Value; 255],
+    //    pub registers: [Value; 255],
     pub free_reg: Cell<u8>,
     pub var_to_reg: HashMap<Symbol, u8>,
     pub name: Option<Symbol>,
     pub arity: u8,
+    pub op_count: usize,
 }
 
 impl ActivationRecord {
@@ -172,6 +352,20 @@ impl ActivationRecord {
         let idx = self.free_reg.get();
         self.free_reg.set(self.free_reg.get() + 1);
         idx
+    }
+
+    pub fn insert_op_at(&mut self, idx: usize, op: OpCode) -> usize {
+        let count = self.op_count;
+        self.op_count += 1;
+        self.bytecode.insert(idx, op);
+        count
+    }
+
+    pub fn insert_op(&mut self, op: OpCode) -> usize {
+        let count = self.op_count;
+        self.op_count += 1;
+        self.bytecode.push(op);
+        count
     }
 }
 
@@ -188,74 +382,18 @@ impl From<&Function> for ActivationRecord {
         }
         ActivationRecord {
             bytecode: Vec::new(),
-            registers: [NIL; 255],
+            //            registers: [NIL; 255],
             free_reg: Cell::new(count),
             var_to_reg,
             name: val.name,
             arity: val.arity,
+            op_count: 0,
         }
-    }
-}
-
-pub type RegIdx = u8;
-
-pub type PIdx = i32;
-
-#[derive(Debug)]
-pub enum RegOrExpr {
-    Reg(RegIdx),
-    Expr(ExprId),
-}
-
-#[derive(Debug)]
-pub enum OpCode {
-    // dst , src
-    Move(RegIdx, RegIdx),
-    LoadVal(RegIdx, ExprId),
-    LoadTrue(RegIdx),
-    LoadFalse(RegIdx),
-    LoadNil(RegIdx),
-    Add(RegIdx, RegOrExpr, RegOrExpr),
-    Sub(RegIdx, RegOrExpr, RegOrExpr),
-    Mul(RegIdx, RegOrExpr, RegOrExpr),
-    Div(RegIdx, RegOrExpr, RegOrExpr),
-    Mod(RegIdx, RegOrExpr, RegOrExpr),
-    And(RegIdx, RegOrExpr, RegOrExpr),
-    Or(RegIdx, RegOrExpr, RegOrExpr),
-    Eq(RegIdx, RegOrExpr, RegOrExpr),
-    Ne(RegIdx, RegOrExpr, RegOrExpr),
-    Lt(RegIdx, RegOrExpr, RegOrExpr),
-    Le(RegIdx, RegOrExpr, RegOrExpr),
-    Gt(RegIdx, RegOrExpr, RegOrExpr),
-    Ge(RegIdx, RegOrExpr, RegOrExpr),
-    BAnd(RegIdx, RegOrExpr, RegOrExpr),
-    BOr(RegIdx, RegOrExpr, RegOrExpr),
-    Not(RegOrExpr),
-    Jmp(PIdx),
-    Return0,
-    Return1(RegOrExpr),
-    PrintExpr(ExprId),
-    //    Div(RegIdx, RegIdx, RegIdx),
-    //    Mod(RegIdx, RegIdx, RegIdx),
-    //    Pow(RegIdx, RegIdx, RegIdx),
-    //    BNot(RegIdx, RegIdx,
-}
-
-impl From<u8> for RegOrExpr {
-    fn from(val: u8) -> Self {
-        RegOrExpr::Reg(val)
-    }
-}
-
-impl From<ExprId> for RegOrExpr {
-    fn from(val: ExprId) -> Self {
-        RegOrExpr::Expr(val)
     }
 }
 
 #[cfg(test)]
 mod codegen_tests {
-    
 
     pub fn binary() {
         let SOURCE: &'static str = "func test_func() {

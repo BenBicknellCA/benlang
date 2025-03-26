@@ -6,11 +6,7 @@
 use crate::CFG;
 use crate::phi::*;
 use anyhow::{Result, anyhow};
-use parser::{
-    ExprPool,
-    expr_parser::ExprId,
-    scanner::Symbol,
-};
+use parser::{ExprPool, expr_parser::ExprId, scanner::Symbol};
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;
 use slotmap::new_key_type;

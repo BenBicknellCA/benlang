@@ -2,7 +2,7 @@ use crate::ir::HIR;
 use anyhow::{Result, anyhow};
 use petgraph::graph::NodeIndex;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum TermKind {
     If,
     While,

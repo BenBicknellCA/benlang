@@ -1,4 +1,4 @@
-mod basic_block;
+pub mod basic_block;
 pub mod ir;
 mod min_ssa;
 mod optimize;
@@ -97,6 +97,9 @@ impl CFGBuilder {
 
         self.func_to_cfg.insert(func, cfg);
         self.func_to_ssa.insert(func, ssa);
+
+        self.func_to_ssa[self.current_func]
+            .seal_block(current_node, &self.func_to_cfg[self.current_func])?;
 
         let body = std::mem::take(&mut self.func_pool[func].body.body);
 
@@ -211,11 +214,15 @@ impl CFGBuilder {
         cfg: &mut CFG,
         node: NodeIndex,
         hir_stmt: &mut HIR,
-    ) -> Result<bool> {
+        jmp_to: NodeIndex,
+    ) -> Result<HIR> {
         CFGBuilder::optimize_hir(expr_pool, ssa, cfg, node, hir_stmt)?;
         if let Some(current_node) = cfg.node_weight_mut(node) {
-            let cond = hir_stmt.get_value(expr_pool)?.is_bool();
+            let cond = *hir_stmt;
             current_node.append_body(*hir_stmt);
+            current_node.append_body(HIR::Jmp(jmp_to));
+            //            let cond = hir_stmt.get_value(expr_pool)?.is_bool();
+            //            current_node.append_body(*hir_stmt);
             return Ok(cond);
         }
         Err(anyhow!("could not add cond to node {node:?}"))
@@ -231,8 +238,11 @@ impl CFGBuilder {
             .expect("cond id")
     }
 
-    fn expr_to_ir(&self, cond: ExprId) -> HIR {
-        HIR::try_from(&Stmt::Expr(cond)).unwrap()
+    fn expr_to_ir(&self, cond: ExprId) -> Result<HIR> {
+        if let Ok(hir) = HIR::try_from(&Stmt::Expr(cond)) {
+            return Ok(hir);
+        }
+        Err(anyhow!("could not convert {cond:?} to HIR"))
     }
 
     fn add_empty_node_and_set_current(&mut self, seal: bool) -> NodeIndex {
@@ -249,12 +259,14 @@ impl CFGBuilder {
         // if cond is true proceed normally
 
         // if cond is false do not process first branch
-        let do_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
+        let skip_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
             .get_bool()
-            .is_ok_and(|res| res);
+            .is_ok_and(|cond| !cond);
+        //        let do_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
+        //            .get_bool()
+        //            .is_ok_and(|res| res);
 
         // if cond is false but second branch exists, do not process first branch, process second branch as unconditional
-        // todo: fix empty entry exit ndoes on skippign of than block
         let if_entry = self.current_node;
         self.set_term_kind(if_entry, TermKind::If);
 
@@ -264,30 +276,26 @@ impl CFGBuilder {
         self.func_to_ssa[self.current_func]
             .seal_block(if_entry, &self.func_to_cfg[self.current_func])?;
 
+        let mut jmp_node = None;
+
         let mut if_entry_else_entry_edge: (NodeIndex, Option<bool>) = (self.current_node, None);
-        if do_than_branch {
-            let mut cond_ir = self.expr_to_ir(if_stmt.cond());
-            CFGBuilder::add_cond_to_node(
-                &mut self.func_data.expr_pools[self.current_func],
-                &mut self.func_to_ssa[self.current_func],
-                &mut self.func_to_cfg[self.current_func],
-                if_entry,
-                &mut cond_ir,
-            )?;
+        if !skip_than_branch {
             //if `than` branch exists, edge from entry to `else` block is `false`
 
             let then_entry = self.add_empty_node_and_set_current(false);
             self.func_to_cfg[self.current_func].add_edge(if_entry, then_entry, Some(true));
             self.func_to_ssa[self.current_func]
                 .seal_block(then_entry, &self.func_to_cfg[self.current_func])?;
+            let before = self.current_node;
             self.stmts(&if_stmt.first_block().body)?;
 
             self.func_to_cfg[self.current_func].add_edge(self.current_node, if_exit, None);
             if_entry_else_entry_edge = (self.current_node, Some(false));
+            jmp_node = Some(self.current_node);
         }
 
         if let Some(second_branch_block) = if_stmt.second_block() {
-            let else_entry = if !do_than_branch {
+            let else_entry = if skip_than_branch {
                 self.current_node
             } else {
                 self.add_empty_node_and_set_current(false)
@@ -301,9 +309,21 @@ impl CFGBuilder {
             }
             self.func_to_ssa[self.current_func]
                 .seal_block(else_entry, &self.func_to_cfg[self.current_func])?;
-
             self.stmts(&second_branch_block.body)?;
             self.func_to_cfg[self.current_func].add_edge(self.current_node, if_exit, None);
+            jmp_node = Some(self.current_node);
+        }
+
+        if !skip_than_branch {
+            let cond_ir = self.expr_to_ir(if_stmt.cond());
+            CFGBuilder::add_cond_to_node(
+                &mut self.func_data.expr_pools[self.current_func],
+                &mut self.func_to_ssa[self.current_func],
+                &mut self.func_to_cfg[self.current_func],
+                if_entry,
+                &mut cond_ir?,
+                jmp_node.unwrap(),
+            )?;
         }
 
         self.current_node = if_exit;
@@ -314,22 +334,24 @@ impl CFGBuilder {
     fn process_while_stmt(&mut self, while_stmt: &While) -> Result<()> {
         CFGBuilder::fold_constant(self.get_current_expr_pool_mut(), while_stmt.cond())?;
 
-        let do_while_body = self.get_current_expr_pool()[while_stmt.cond()]
+        let skip_while_body = self.get_current_expr_pool()[while_stmt.cond()]
             .get_bool()
-            .is_ok_and(|res| res);
+            .is_ok_and(|cond| !cond);
 
         let while_entry = self.current_node;
 
         self.func_to_ssa[self.current_func]
             .seal_block(while_entry, &self.func_to_cfg[self.current_func])?;
 
-        if !do_while_body {
+        if skip_while_body {
             return Ok(());
         }
-        let mut cond_ir = self.expr_to_ir(while_stmt.cond());
+        let mut cond_ir = self.expr_to_ir(while_stmt.cond())?;
 
         let while_header = self.add_empty_node(false);
         self.set_term_kind(while_header, TermKind::While);
+        let body_entry = self.add_empty_node(false);
+        let while_exit = self.add_empty_node(false);
 
         CFGBuilder::add_cond_to_node(
             &mut self.func_data.expr_pools[self.current_func],
@@ -337,10 +359,10 @@ impl CFGBuilder {
             &mut self.func_to_cfg[self.current_func],
             while_header,
             &mut cond_ir,
+            while_exit,
         )?;
+
         self.func_to_cfg[self.current_func].add_edge(while_entry, while_header, None);
-        let body_entry = self.add_empty_node(false);
-        let while_exit = self.add_empty_node(false);
         self.func_to_cfg[self.current_func].add_edge(while_header, body_entry, Some(true));
         self.func_to_cfg[self.current_func].add_edge(while_header, while_exit, Some(false));
         self.func_to_ssa[self.current_func]
@@ -349,6 +371,7 @@ impl CFGBuilder {
         self.stmts(&while_stmt.first_block().body)?;
 
         let body_exit = self.current_node;
+        self.func_to_cfg[self.current_func][body_exit].append_body(HIR::Jmp(while_entry));
         self.func_to_ssa[self.current_func]
             .seal_block(body_exit, &self.func_to_cfg[self.current_func])?;
         self.func_to_cfg[self.current_func].add_edge(body_exit, while_header, None);

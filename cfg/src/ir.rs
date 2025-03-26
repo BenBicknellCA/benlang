@@ -7,15 +7,22 @@ use parser::object::FuncId;
 use parser::scanner::Symbol;
 use parser::stmt::Stmt;
 use parser::value::Value;
+use petgraph::graph::NodeIndex;
+use slotmap::new_key_type;
+
+new_key_type! {pub struct ConstId;}
 
 #[derive(Debug, Copy, Clone)]
 pub enum HIR {
     Expr(ExprId),
+    Const(ConstId),
     Return0,
     Return1(ExprId),
     Print(ExprId),
     Var(Assign),
+    Assign(Assign),
     DeclareFunc(FuncId),
+    Jmp(NodeIndex),
 }
 
 impl HIR {
@@ -25,6 +32,7 @@ impl HIR {
             HIR::Return1(_) => HIR::Return1(new_expr),
             HIR::Print(_) => HIR::Print(new_expr),
             HIR::Var(assign) => HIR::Var(Assign::new(assign.name, new_expr)),
+            HIR::Assign(assign) => HIR::Assign(Assign::new(assign.name, new_expr)),
             _ => {
                 return Err(anyhow!("cannot swap expr from {:?}", self));
             }

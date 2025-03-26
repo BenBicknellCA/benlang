@@ -1,4 +1,3 @@
-
 use crate::expr::BinaryOp;
 
 use crate::object::Object;
@@ -78,7 +77,7 @@ impl Literal {
         match op {
             BinaryOp::And => Ok(lhs && rhs),
             BinaryOp::Or => Ok(lhs || rhs),
-            _ => Err(anyhow!("cannot fold {lhs:?} and {rhs:?}")),
+            _ => Err(anyhow!("cannot fold {lhs:?} and {rhs:?} // {op:?}")),
         }
     }
 }

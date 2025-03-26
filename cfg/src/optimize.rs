@@ -98,6 +98,11 @@ impl CFGBuilder {
     pub fn fold_binary(expr_pool: &mut ExprPool, binary_id: ExprId) -> Result<()> {
         let binary = expr_pool.get(binary_id).unwrap().get_binary()?;
 
+        // do not fold to preserve conditionals
+        if expr_pool[binary.lhs].is_bool() && expr_pool[binary.rhs].is_bool() {
+            return Ok(());
+        }
+
         CFGBuilder::fold_constant(expr_pool, binary.lhs)?;
         CFGBuilder::fold_constant(expr_pool, binary.rhs)?;
 
@@ -136,11 +141,13 @@ impl CFGBuilder {
             BinaryOp::Slash => lhs / rhs,
             BinaryOp::Star => lhs * rhs,
 
-            BinaryOp::And | BinaryOp::Or if lhs.get_bool()? && rhs.get_bool()? => {
+            BinaryOp::And | BinaryOp::Or if lhs.get_bool().is_ok() && rhs.get_bool().is_ok() => {
                 Literal::Bool(lhs.fold_and_or(binary.op, &rhs)?)
             }
 
-            _ => return Err(anyhow!("cannot fold {lhs:?} and {rhs:?}")),
+            _ => {
+                return Ok(());
+            } //            return Err(anyhow!("cannot fold {lhs:?} and {rhs:?} // {:?}", binary.op)),
         };
         expr_pool[binary_id] = Expr::Value(Value::Literal(folded));
         Ok(())
