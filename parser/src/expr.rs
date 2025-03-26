@@ -212,6 +212,12 @@ pub struct Grouping(pub Symbol);
 
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Call {
-    callee: ExprId,
+    callee: Option<Symbol>,
     args: Vec<ExprId>,
+}
+
+impl Call {
+    pub fn new(callee: Option<Symbol>, args: Vec<ExprId>) -> Self {
+        Self { callee, args }
+    }
 }
