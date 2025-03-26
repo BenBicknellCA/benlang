@@ -4,21 +4,6 @@ use codegen::Generator;
 use parser::Parser;
 use parser::scanner::Scanner;
 
-// symbol_table: &SymbolTable,
-// cfg: CFG,
-// func_data: FuncData,
-// expr_pool: ExprPool,
-// ssa: SSABuilder,
-// func_pool: FuncPool,
-// func: &Function,
-
-// symbol_table: &SymbolTable,
-// cfg: CFG,
-// func_data: &FuncData,
-// ssa: SSABuilder,
-// func_pool: &FuncPool,
-// func_id: FuncId,
-
 fn main() -> Result<()> {
     let mut cfg_builder = build_cfg();
     cfg_builder.build_cfgs()?;
@@ -26,13 +11,6 @@ fn main() -> Result<()> {
     let mut generator = Generator::new_from_id(&cfg_builder, cfg_builder.func_data.main);
 
     generator.generate_all_func_protos(&cfg_builder);
-
-    //    generator.generate_all_func_protos();
-
-    //    for record in activation_records {
-    //        let record = record.func_proto;
-    //        println!("{record:?}");
-    //    }
 
     Ok(())
 }
