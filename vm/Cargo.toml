@@ -8,3 +8,4 @@ parser = { path = "../parser" }
 cfg = { path = "../cfg" }
 codegen = { path = "../codegen" }
 slotmap = "1.0.7"
+anyhow = "1.0.97"

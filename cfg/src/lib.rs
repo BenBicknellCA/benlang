@@ -74,6 +74,7 @@ impl CFGBuilder {
             .parent_to_children
             .remove(self.func_data.main)
             .unwrap();
+        self.build_func_cfg(self.func_data.main)?;
         for func in funcs {
             self.build_func_cfg(func)?;
         }
@@ -183,10 +184,10 @@ impl CFGBuilder {
         node: NodeIndex,
         hir: &mut HIR,
     ) -> Result<()> {
-        let expr_id = hir.get_expr()?;
-        CFGBuilder::fold_constant(expr_pool, expr_id)?;
-        CFGBuilder::propagate_copy_hir(expr_pool, ssa, cfg, node, hir)?;
-
+        if let Ok(expr_id) = hir.get_expr() {
+            CFGBuilder::fold_constant(expr_pool, expr_id)?;
+            CFGBuilder::propagate_copy_hir(expr_pool, ssa, cfg, node, hir)?;
+        }
         Ok(())
     }
 
@@ -238,11 +239,26 @@ impl CFGBuilder {
             .expect("cond id")
     }
 
-    fn expr_to_ir(&self, cond: ExprId) -> Result<HIR> {
-        if let Ok(hir) = HIR::try_from(&Stmt::Expr(cond)) {
-            return Ok(hir);
-        }
-        Err(anyhow!("could not convert {cond:?} to HIR"))
+    pub fn expr_to_hir(&self, expr_id: ExprId) -> Result<HIR> {
+        let expr = &self.func_data.expr_pools[self.current_func][expr_id];
+        let hir = match &expr {
+            Expr::Assign(assign) => HIR::Assign(*assign),
+            _ => HIR::Expr(expr_id),
+        };
+        Ok(hir)
+    }
+
+    pub fn stmt_to_hir(&self, stmt_id: StmtId) -> Result<HIR> {
+        let stmt = &self.func_data.stmt_pools[self.current_func][stmt_id];
+        let hir = match stmt {
+            Stmt::Var(var) => HIR::Var(*var),
+            Stmt::Return0 => HIR::Return0,
+            Stmt::Expr(expr) => self.expr_to_hir(*expr)?,
+            Stmt::Return1(to_ret) => HIR::Return1(*to_ret),
+            Stmt::Print(to_print) => HIR::Print(*to_print),
+            _ => return Err(anyhow!("{stmt:?} cannot be made into HIR")),
+        };
+        Ok(hir)
     }
 
     fn add_empty_node_and_set_current(&mut self, seal: bool) -> NodeIndex {
@@ -315,7 +331,7 @@ impl CFGBuilder {
         }
 
         if !skip_than_branch {
-            let cond_ir = self.expr_to_ir(if_stmt.cond());
+            let cond_ir = self.expr_to_hir(if_stmt.cond());
             CFGBuilder::add_cond_to_node(
                 &mut self.func_data.expr_pools[self.current_func],
                 &mut self.func_to_ssa[self.current_func],
@@ -346,7 +362,7 @@ impl CFGBuilder {
         if skip_while_body {
             return Ok(());
         }
-        let mut cond_ir = self.expr_to_ir(while_stmt.cond())?;
+        let mut cond_ir = self.expr_to_hir(while_stmt.cond())?;
 
         let while_header = self.add_empty_node(false);
         self.set_term_kind(while_header, TermKind::While);
@@ -417,7 +433,6 @@ impl CFGBuilder {
                 }
                 Stmt::Return0 => self.ret_0(),
                 Stmt::Return1(val) => self.ret_1(val),
-                Stmt::Function(_) => todo!(),
                 _ => unreachable!("not a term: {stmt:?}"),
             };
         }
@@ -438,7 +453,7 @@ impl CFGBuilder {
             Expr::Stmt(_) => {
                 todo!()
             }
-            Expr::Call(_) => {
+            Expr::Call(call) => {
                 todo!()
             }
             Expr::Assign(assign) => {
@@ -517,24 +532,23 @@ impl CFGBuilder {
     fn stmt(&mut self, stmt_id: StmtId) -> Result<bool> {
         self.process_all_vars_in_stmt(stmt_id)?;
         let stmt = &self.get_current_stmt_pool()[stmt_id];
-        if stmt.is_func() {
-            return Ok(false);
-        }
         if stmt.is_term() {
             self.term_stmt(stmt_id)?;
             return Ok(true);
         }
 
-        if let Ok(mut ir_stmt) = HIR::try_from(&self.get_current_stmt_pool()[stmt_id]) {
-            CFGBuilder::add_ir_stmt_to_node(
-                &mut self.func_to_ssa[self.current_func],
-                &mut self.func_to_cfg[self.current_func],
-                self.current_node,
-                &mut self.func_data.expr_pools[self.current_func],
-                &mut ir_stmt,
-            )?;
-            return Ok(true);
-        }
+        let stmt = &self.get_current_stmt_pool()[stmt_id];
+        let mut hir = self.stmt_to_hir(stmt_id)?;
+        // bad
+        // todo: something better than try_from that includes Call
+        CFGBuilder::add_ir_stmt_to_node(
+            &mut self.func_to_ssa[self.current_func],
+            &mut self.func_to_cfg[self.current_func],
+            self.current_node,
+            &mut self.func_data.expr_pools[self.current_func],
+            &mut hir,
+        )?;
+
         Ok(false)
     }
 }

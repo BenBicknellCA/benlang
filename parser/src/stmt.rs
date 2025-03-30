@@ -12,14 +12,14 @@ pub enum Stmt {
     Return1(ExprId),
     Var(Assign),
     Print(ExprId),
-    Function(FuncId),
+    //    Function(FuncId),
     Block(Block),
 }
 
 impl Stmt {
-    pub fn is_func(&self) -> bool {
-        matches!(self, Stmt::Function(_))
-    }
+    //    pub fn is_func(&self) -> bool {
+    //        matches!(self, Stmt::Function(_))
+    //    }
     pub fn is_conditional(&self) -> bool {
         matches!(self, Stmt::If(_) | Stmt::While(_))
     }

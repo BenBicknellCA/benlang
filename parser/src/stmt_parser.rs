@@ -2,7 +2,7 @@ use crate::Parser;
 use crate::expr::*;
 use crate::expr_parser::*;
 
-use crate::object::Function;
+use crate::object::{Function, Object};
 use crate::scanner::Symbol;
 use crate::scanner::Token;
 use crate::stmt::*;
@@ -62,20 +62,17 @@ impl Parser {
         self.consume(Token::LeftParen)?;
         let mut arity: u8 = 0;
 
-        let params: Option<Vec<Symbol>> = if self.check(Token::RightParen).is_err() {
-            let first_param = self.parse_var()?;
-            let mut params = vec![first_param];
+        let mut params: Vec<Symbol> = Vec::new();
+
+        if self.check(Token::RightParen).is_err() {
+            params.push(self.parse_var()?);
             arity += 1;
             while self.check(Token::RightParen).is_err() {
                 self.consume(Token::Comma)?;
-                let param = self.parse_var()?;
-                params.push(param);
+                params.push(self.parse_var()?);
                 arity += 1;
             }
-            Some(params)
-        } else {
-            None
-        };
+        }
 
         self.consume(Token::RightParen)?;
 
@@ -85,7 +82,10 @@ impl Parser {
         self.func_pool[child] = Function::new(Some(name), body, arity, params, child);
         self.func_data.current = parent;
 
-        let fun: StmtId = self.func_data.stmt_pools[parent].insert(Stmt::Function(child));
+        let val = self.func_data.expr_pools[parent]
+            .insert(Expr::Value(Value::Object(Object::Function(child))));
+
+        let fun: StmtId = self.func_data.stmt_pools[parent].insert(Stmt::Expr(val));
 
         //        let fun_obj = self.resolver.insert_obj(Object::Function(fun_obj));
         Ok(fun)

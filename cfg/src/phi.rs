@@ -111,7 +111,7 @@ impl Phis {
 }
 
 #[derive(Default)]
-pub struct PhisToBlock(SecondaryMap<PhiId, NodeIndex>);
+pub struct PhisToBlock(pub SecondaryMap<PhiId, NodeIndex>);
 impl PhisToBlock {
     pub fn new() -> Self {
         Self::default()

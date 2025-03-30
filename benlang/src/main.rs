@@ -1,35 +1,33 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::Generator;
+use codegen::Compiler;
 use parser::Parser;
 use parser::scanner::Scanner;
+use vm::VM;
 
 fn main() -> Result<()> {
     let mut cfg_builder = build_cfg();
     cfg_builder.build_cfgs()?;
+    let main = cfg_builder.func_data.main;
+    let mut generator = Compiler::new_from_id(&cfg_builder, cfg_builder.func_data.main);
 
-    let mut generator = Generator::new_from_id(&cfg_builder, cfg_builder.func_data.main);
+    generator.compile_all_funcs(&cfg_builder);
 
-    generator.generate_all_func_protos(&cfg_builder);
+    let mut vm = VM::new(generator.func_protos, cfg_builder.symbol_table, main);
+    vm.run_program();
 
     Ok(())
 }
 
 pub fn prep_parser_cfg() -> Parser {
     static SOURCE: &str = "
-            func test_func(first_param, second_param) {
-                    var test_var = 0;
-                    while (test_var < 100 ) {
-                        if (test_var > 100) {
-                            test_var = test_var + 10;
-                        } else {
-                            test_var = test_var + 9;
-                        }
-                    }
-                    test_var + 3000;
-                    var new_var = test_var + 1;
+            func fib(n) {
+                if (n <= 1) {
+                    return n;
+                }
+                return fib(n - 1) + fib(n - 2);
             }
-            test_func(1, 2);
+            fib(100);
             ";
     let mut scanner = Scanner::new(SOURCE);
     scanner.scan();
