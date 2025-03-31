@@ -16,13 +16,10 @@ new_key_type! {pub struct ConstId;}
 #[derive(Debug, Clone, Copy)]
 pub enum HIR {
     Expr(ExprId),
-    Const(ConstId),
     Return0,
     Return1(ExprId),
     Print(ExprId),
-    Var(Assign),
     Assign(Assign),
-    DeclareFunc(FuncId),
     Jmp(NodeIndex),
 }
 
@@ -43,7 +40,6 @@ impl HIR {
     //    }
     pub fn get_name_val(stmt: &Stmt, expr_pool: &crate::ExprPool) -> Option<(Symbol, ExprId)> {
         match stmt {
-            Stmt::Var(assign) => Some((assign.name, assign.val)),
             Stmt::Expr(expr) => {
                 if let Expr::Assign(assgn) = &expr_pool[*expr] {
                     return Some((assgn.name, assgn.val));
@@ -57,7 +53,6 @@ impl HIR {
         let id = match self {
             HIR::Return1(expr) => expr,
             HIR::Print(expr) => expr,
-            HIR::Var(assign) => &assign.val,
             HIR::Assign(assign) => &assign.val,
             _ => return Err(anyhow!("cannot get expr from {:?}", self)),
         };

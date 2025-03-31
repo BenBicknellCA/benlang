@@ -57,6 +57,7 @@ impl Parser {
     fn function(&mut self) -> Result<StmtId> {
         let parent = self.func_data.current;
         let child = self.enter_func(parent);
+
         self.consume(Token::Func)?;
         let name: Symbol = self.parse_var()?;
         self.consume(Token::LeftParen)?;
@@ -83,7 +84,7 @@ impl Parser {
         self.func_data.current = parent;
 
         let val = self.func_data.expr_pools[parent]
-            .insert(Expr::Value(Value::Object(Object::Function(child))));
+            .insert(Expr::Value(Value::Literal(Literal::Function(child))));
 
         let fun: StmtId = self.func_data.stmt_pools[parent].insert(Stmt::Expr(val));
 

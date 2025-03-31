@@ -7,11 +7,12 @@ use vm::VM;
 
 fn main() -> Result<()> {
     let mut cfg_builder = build_cfg();
+    for asd in cfg_builder.func_pool.values() {}
     cfg_builder.build_cfgs()?;
     let main = cfg_builder.func_data.main;
     let mut generator = Compiler::new_from_id(&cfg_builder, cfg_builder.func_data.main);
 
-    generator.compile_all_funcs(&cfg_builder);
+    generator.compile_all_funcs(&cfg_builder)?;
 
     let mut vm = VM::new(generator.func_protos, cfg_builder.symbol_table, main);
     vm.run_program();
@@ -37,7 +38,6 @@ pub fn prep_parser_cfg() -> Parser {
 pub fn build_cfg() -> CFGBuilder {
     let mut parser = prep_parser_cfg();
     parser.build_ast().unwrap();
-    let ast = parser.ast;
     let main = parser.func_data.main;
     let func_data = parser.func_data;
     let func_pool = parser.func_pool;

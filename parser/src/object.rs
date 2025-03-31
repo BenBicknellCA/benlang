@@ -64,9 +64,9 @@ impl Var {
     }
 }
 
+
 #[derive(Debug, PartialEq, Clone, PartialOrd, Hash, Eq, Copy)]
 pub enum Object {
-    Function(FuncId),
     Closure,
 }
 

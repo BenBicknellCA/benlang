@@ -57,9 +57,6 @@ impl CFGBuilder {
             HIR::Expr(expr) => {
                 CFGBuilder::propagate_copy_id(expr_pool, ssa, cfg, node, *expr)?;
             }
-            HIR::Var(assign) => {
-                CFGBuilder::replace_assign_val(ssa, cfg, node, assign)?;
-            }
             _ => {}
         };
 

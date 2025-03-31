@@ -285,7 +285,7 @@ impl VM {
                     }
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
-                OpCode::Call(func_reg, arg_count) => {
+                OpCode::Call(func_reg, args, arg_count) => {
                     print!("{fp}: {ip}: Call: ");
                     //                    println!("{func:?}");
 

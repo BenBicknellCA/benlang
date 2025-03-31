@@ -230,16 +230,18 @@ pub struct Variable(pub Symbol);
 #[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
 pub struct Grouping(pub Symbol);
 
-#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+#[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Call {
     pub callee: Option<Symbol>,
+    pub args: Vec<ExprId>,
     pub arg_count: usize,
 }
 
 impl Call {
-    pub fn new(callee: Option<Symbol>, arg_count: usize) -> Self {
+    pub fn new(callee: Option<Symbol>, args: Vec<ExprId>, arg_count: usize) -> Self {
         Self {
             callee,
+            args,
             arg_count,
         }
     }

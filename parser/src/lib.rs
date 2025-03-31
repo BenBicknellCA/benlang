@@ -233,6 +233,7 @@ pub struct FuncData {
 impl FuncData {
     pub fn new_main(func_pool: &mut FuncPool) -> Self {
         let main = func_pool.insert(Function::default());
+        func_pool[main].func_id = main;
         let current = main;
         let mut parent_to_children = SecondaryMap::new();
 
@@ -307,6 +308,7 @@ impl Parser {
     pub fn enter_func(&mut self, parent: FuncId) -> FuncId {
         let placeholder_child = self.func_pool.insert(Function::default());
         self.func_data.current = placeholder_child;
+        self.func_pool[placeholder_child].func_id = placeholder_child;
 
         self.func_data
             .stmt_pools
@@ -396,8 +398,7 @@ impl Parser {
     pub fn build_ast(&mut self) -> Result<()> {
         while !self.is_at_end() {
             let key = self.declaration()?;
-            //            println!("PUSHGIN: {key:?}");
-            self.func_pool[self.func_data.main].body.body.push(key);
+            self.func_pool[self.func_data.current].body.body.push(key);
             //            for (id, val) in &self.func_data.stmt_pools[self.func_data.main] {
             //                println!("id: {:?} val: {:?}", id, val);
             //                if let Some(Stmt::Expr(expr)) = self.func_data.stmt_pools[self.func_data.main].get(id) {

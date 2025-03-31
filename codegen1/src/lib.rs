@@ -387,6 +387,7 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn compile_call(&mut self, call: &Call) -> Result<RegOrConst> {
+        println!("COMPILING CALL: {call:?}");
         // allocate a register for the return value
         let dest = self.acquire_reg();
         //        // allocate a register for a closure environment pointer
@@ -446,8 +447,6 @@ impl<'a> Compiler<'a> {
                 Ok(RegOrConst::Reg(self.resolve_var(&var.0)?))
             }
             Expr::Value(val) => {
-
-                //                match
                 self.emit_load_const(val)
                 //                self.func_proto.op_count
             }
