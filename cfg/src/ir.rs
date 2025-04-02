@@ -1,10 +1,8 @@
 use anyhow::{Result, anyhow};
 use parser::ExprPool;
 use parser::expr::Assign;
-use parser::expr::Call;
-use parser::expr::{Binary, Expr, Unary};
+use parser::expr::Expr;
 use parser::expr_parser::ExprId;
-use parser::object::FuncId;
 use parser::scanner::Symbol;
 use parser::stmt::Stmt;
 use parser::value::Value;

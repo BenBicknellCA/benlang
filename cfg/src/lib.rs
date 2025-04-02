@@ -21,7 +21,6 @@ use parser::{
     stmt::{Block, Conditional, If, Stmt, While},
 };
 
-use parser::value::{Literal, Value};
 use petgraph::{Graph, graph::NodeIndex};
 use slotmap::SecondaryMap;
 
