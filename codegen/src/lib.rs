@@ -135,7 +135,6 @@ impl<'a> Compiler<'a> {
     }
 
     fn lookup_binding(&mut self, name: Symbol) -> Result<Option<Binding>> {
-        // The frame_offset is the number of parent nesting functions searched for a variable
         let mut frame_offset: u8 = 0;
 
         let mut id = self.func_id;
@@ -147,12 +146,9 @@ impl<'a> Compiler<'a> {
                         // At depth 0, this is a local binding
                         return Ok(Some(Binding::Local(var.register())));
                     } else {
-                        // Otherwise it is a nonlocal and needs to be referenced as an upvalue.
-                        // Create a new upvalue reference if one does not exist.
                         let mut nonlocals = l.nonlocals.borrow_mut();
 
                         if nonlocals.get(&name).is_none() {
-                            // Create a new non-local descriptor and add it
                             let nonlocal = Nonlocal::new(
                                 self.func_protos[id].variables.acquire_upvalue_id(),
                                 frame_offset,
@@ -160,8 +156,6 @@ impl<'a> Compiler<'a> {
                             );
                             nonlocals.insert(name, nonlocal);
 
-                            // Mark the variable as closed-over, as in, a closure will refer to it
-                            // and it's upvalue must be closed at runtime
                             var.close_over();
                         }
                     }
@@ -222,16 +216,7 @@ impl<'a> Compiler<'a> {
         }
         panic!("could not patch sentinal jmp");
     }
-    //    pub fn compile_named_func(&mut self, func: &Function) -> Result<RegOrConst> {
-    //        let parent = self.func_data.child_to_parent[func.func_id];
-    //
-    //        //        let name = func.name.unwrap();
-    //        //        let src = self.emit_load_const(&Value::Literal(Literal::String(name)))?;
-    //        //        let dst = self.emit_load_const(&Value::Literal(Literal::Function(self.func_id)))?;
-    //        //        self.func_protos[parent].insert_op(OpCode::SetGlobal(dst, src));
-    //
-    //        Ok(dst)
-    //    }
+
     pub fn compile_anon_func(&mut self, func: &Function) -> Result<RegIdx> {
         todo!()
     }
@@ -486,7 +471,23 @@ impl<'a> Compiler<'a> {
         Ok(dest.into())
     }
 
-    pub fn define_func(&mut self, func: FuncId) {}
+    pub fn define_func(&mut self, func: FuncId) -> Result<RegOrConst> {
+        //global func
+        if self.func_id == self.func_data.main {
+            let func = &self.func_pool[func];
+            if let Some(name) = func.name {
+                let name_const =
+                    RegOrConst::Const(self.resolve_value(&Value::Literal(Literal::String(name)))?);
+                let func_const = RegOrConst::Const(
+                    self.resolve_value(&Value::Literal(Literal::Function(func.func_id)))?,
+                );
+                self.func_protos[self.func_data.main]
+                    .insert_op(OpCode::SetGlobal(name_const, func_const));
+                return Ok(func_const);
+            }
+        }
+        todo!("nested func")
+    }
 
     pub fn compile_expr(&mut self, expr: ExprId) -> Result<RegOrConst> {
         let to_match: &Expr = &self.func_data.expr_pools[self.func_id][expr];
@@ -501,44 +502,10 @@ impl<'a> Compiler<'a> {
             }
             Expr::Variable(var) => Ok(RegOrConst::Reg(self.resolve_var(&var.0)?)),
             Expr::Value(val) => {
-                if let Value::Literal(lit) = val {
-                    if let Literal::Function(func) = lit {
-                        if self.func_id == self.func_data.main {
-                            let func = &self.func_pool[*func];
-                            if let Some(name) = func.name {
-                                let name_const = RegOrConst::Const(
-                                    self.resolve_value(&Value::Literal(Literal::String(name)))?,
-                                );
-                                let func_const = RegOrConst::Const(self.resolve_value(
-                                    &Value::Literal(Literal::Function(func.func_id)),
-                                )?);
-                                self.func_protos[self.func_data.main]
-                                    .insert_op(OpCode::SetGlobal(name_const, func_const));
-                                return Ok(func_const);
-                            }
-                        }
-                    }
-                    //                    return Ok(RegOrConst::Const(self.resolve_value(val)?));
-                };
-                //                Ok(RegOrConst::Const(self.resolve_value(val)?))
-                //                if let Value::Literal(Literal::Function(func_id)) = val {
-                //                    let func = &self.func_pool[*func_id];
-                //                    let prev = self.func_id;
-                //                    let func = &self.func_pool[*func_id];
-                //                    let id = self.new_proto(func);
-                //                    let func = self.resolve_value(val)?;
-                //                    self.compile_func(*func_id)?;
-                //                    return Ok(RegOrConst::Const(func));
-                //
-                //                    //                        println!("FUNC: {func_id:?} in {:?}", self.func_id);
-                //                    //                        //                        return Ok(RegOrConst::Reg(self.resolve_var(&name)?));
-                //                    //
-                //                    //
-                //                    //                    }
-                //                };
-
+                if let Value::Literal(Literal::Function(func)) = val {
+                    return self.define_func(*func);
+                }
                 self.emit_load_const(val)
-                //                self.func_proto.op_count
             }
             _ => {
                 panic!("todo: {to_match:?}")
@@ -550,22 +517,8 @@ impl<'a> Compiler<'a> {
         self.func_protos[self.func_id].acquire_reg()
     }
 
-    //    pub fn emit_var_bytecode(&mut self, name: Symbol, val: ExprId) -> Result<RegOrConst> {
-    //        let dst = self.lookup_binding(name)?;
-    //        if let Some(dst) = dst {
-    //            let dst = self.resolve_var(&name)?;
-    //            let src = self.compile_expr(val)?;
-    //
-    //            let opcode = OpCode::Move(dst, src);
-    //            self.func_protos[self.func_id].insert_op(opcode);
-    //            return Ok(RegOrConst::Reg(dst));
-    //        }
-    //        Err(anyhow!("todo"))
-    //    }
-
     pub fn emit_assign_bytecode(&mut self, name: Symbol, val: ExprId) -> Result<RegOrConst> {
         todo!()
-        //        self.emit_var_bytecode(name, val)
     }
 
     pub fn gen_func_decl_bytecode(&self, cfg: &CFG, bytecode: &mut Bytecode) -> usize {
@@ -583,13 +536,8 @@ impl<'a> Compiler<'a> {
                 return self.compile_expr(*expr_id);
             }
 
-            //            HIR::Var(assign) => {
-            //
-            //                self.emit_var_bytecode(assign.name, assign.val)?;
-            //            }
             HIR::Assign(assign) => {
                 todo!()
-                //                return self.emit_assign_bytecode(assign.name, RegOrConst::Const(assign.val));
             }
             HIR::Return0 => {
                 self.func_protos[self.func_id].insert_op(OpCode::Return0);

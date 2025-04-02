@@ -48,8 +48,7 @@ impl CFGBuilder {
     // todo: replace all uses of y with x
     pub fn propagate_copy_hir(
         expr_pool: &mut ExprPool,
-        ssa:
-        &mut SSABuilder,
+        ssa: &mut SSABuilder,
         cfg: &CFG,
         node: NodeIndex,
         hir: &mut HIR,
@@ -57,7 +56,6 @@ impl CFGBuilder {
         if let HIR::Expr(expr) = hir {
             CFGBuilder::propagate_copy_id(expr_pool, ssa, cfg, node, *expr)?;
         };
-
 
         Ok(())
     }

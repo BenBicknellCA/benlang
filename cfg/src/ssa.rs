@@ -192,6 +192,7 @@ impl SSABuilder {
 
             self.borrow_phi_opnds_mut_pub()[phi_id].push(opnd);
         }
+        self.try_remove_trivial_phi(phi_id)?;
         Ok(())
     }
 

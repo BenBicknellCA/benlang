@@ -47,7 +47,6 @@ pub struct CallFrame {
     pub func: FuncId,
     pub return_address: usize,
     pub return_frame: usize,
-    top: usize,
     ip: usize,
 }
 
@@ -58,7 +57,6 @@ impl CallFrame {
             return_address,
             return_frame,
             registers: RegisterStack::default(),
-            top: 1,
             ip: 0,
         }
     }

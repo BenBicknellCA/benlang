@@ -128,10 +128,6 @@ impl CFGBuilder {
         self.get_expr_pool_mut(self.current_func)
     }
 
-    fn get_stmt_pool_mut(&mut self, func_id: FuncId) -> &mut StmtPool {
-        &mut self.func_data.stmt_pools[func_id]
-    }
-
     fn get_current_stmt_pool_mut(&mut self) -> &mut StmtPool {
         &mut self.func_data.stmt_pools[self.current_func]
     }
@@ -142,27 +138,6 @@ impl CFGBuilder {
 
     fn get_current_stmt_pool(&self) -> &StmtPool {
         self.get_stmt_pool(self.current_func)
-    }
-
-    fn print_expr(&self, expr_id: ExprId) {
-        let expr = self.get_current_expr_pool().get(expr_id).unwrap();
-        println!("expr: {expr:?}");
-    }
-
-    fn get_current_bb(&self) -> &BasicBlock {
-        self.func_to_cfg[self.current_func]
-            .node_weight(self.current_node)
-            .unwrap()
-    }
-
-    fn get_current_bb_mut(&mut self) -> &mut BasicBlock {
-        self.func_to_cfg[self.current_func]
-            .node_weight_mut(self.current_node)
-            .unwrap()
-    }
-
-    fn is_current_node_empty(&self) -> bool {
-        self.get_current_bb().is_empty()
     }
 
     fn add_empty_node(&mut self, seal: bool) -> NodeIndex {
@@ -190,8 +165,6 @@ impl CFGBuilder {
         }
         Ok(())
     }
-
-    fn fold_expr(&mut self, expr_id: ExprId) {}
 
     fn add_ir_stmt_to_node(
         ssa: &mut SSABuilder,
@@ -227,16 +200,6 @@ impl CFGBuilder {
             return Ok(cond);
         }
         Err(anyhow!("could not add cond to node {node:?}"))
-    }
-
-    fn get_cond_id<T: Conditional>(&self, cond: T) -> ExprId {
-        cond.cond()
-    }
-
-    fn get_cond_ref<T: Conditional>(&self, cond: T) -> &Expr {
-        self.get_current_expr_pool()
-            .get(cond.cond())
-            .expect("cond id")
     }
 
     pub fn expr_to_hir(&self, expr_id: ExprId) -> Result<HIR> {
