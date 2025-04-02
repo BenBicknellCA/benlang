@@ -7,7 +7,6 @@ use vm::VM;
 
 fn main() -> Result<()> {
     let mut cfg_builder = build_cfg();
-    for asd in cfg_builder.func_pool.values() {}
     cfg_builder.build_cfgs()?;
     let main = cfg_builder.func_data.main;
     let mut compiler = Compiler::new_from_id(&cfg_builder, cfg_builder.func_data.main);
@@ -15,7 +14,7 @@ fn main() -> Result<()> {
     compiler.compile_all_funcs(&cfg_builder)?;
 
     let mut vm = VM::new(compiler.func_protos, cfg_builder.symbol_table, main);
-    vm.run_program()?;
+    vm.run_program(false)?;
 
     Ok(())
 }

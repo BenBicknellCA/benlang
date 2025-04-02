@@ -1,10 +1,10 @@
-//do not remove
-use crate::Precedence;
 use crate::expr::Expr;
 use crate::expr::{BinaryOp, Call, Unary, UnaryOp, Variable};
 use crate::scanner::Symbol;
 use crate::scanner::Token;
 use crate::value::{Literal, Value};
+//do not remove
+use crate::Precedence;
 use crate::{ParseError, Parser};
 use anyhow::Result;
 use slotmap::new_key_type;
@@ -40,8 +40,12 @@ impl Parser {
         self.insert_expr(Value::Literal(Literal::String(string_key)).into())
     }
 
-    fn number(&mut self, num: f64) -> Result<ExprId> {
+    fn number(&mut self, num: u32) -> Result<ExprId> {
         self.insert_expr(Value::Literal(Literal::Number(num)).into())
+    }
+
+    fn float(&mut self, flt: f32) -> Result<ExprId> {
+        self.insert_expr(Value::Literal(Literal::Float(flt)).into())
     }
 
     fn primary(&mut self, token: Token) -> Result<ExprId> {
@@ -54,6 +58,7 @@ impl Parser {
             Token::False => {
                 Ok(self.insert_expr_in_current_func(Value::Literal(Literal::Bool(false)).into()))
             }
+            Token::Float(flt) => self.float(flt),
             _ => Err(ParseError::InvalidPrimary { primary: token }.into()),
         }
     }

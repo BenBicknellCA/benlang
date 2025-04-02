@@ -173,10 +173,6 @@ impl SSABuilder {
         id
     }
 
-    fn get_users(&self, phi: PhiId) -> &[User] {
-        self.phi_users[phi].as_slice()
-    }
-
     pub fn seal_block(&mut self, block: NodeIndex, cfg: &CFG) -> Result<()> {
         let inc_phis: HashMap<Symbol, PhiId> = std::mem::take(&mut self.incomplete_phis[block]);
         for (var, phi) in inc_phis {

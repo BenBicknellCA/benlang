@@ -241,9 +241,6 @@ impl CFGBuilder {
         let skip_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
             .get_bool()
             .is_ok_and(|cond| !cond);
-        //        let do_than_branch = self.get_current_expr_pool()[if_stmt.cond()]
-        //            .get_bool()
-        //            .is_ok_and(|res| res);
 
         // if cond is false but second branch exists, do not process first branch, process second branch as unconditional
         let if_entry = self.current_node;
@@ -265,7 +262,6 @@ impl CFGBuilder {
             self.func_to_cfg[self.current_func].add_edge(if_entry, then_entry, Some(true));
             self.func_to_ssa[self.current_func]
                 .seal_block(then_entry, &self.func_to_cfg[self.current_func])?;
-            let before = self.current_node;
             self.stmts(&if_stmt.first_block().body)?;
 
             self.func_to_cfg[self.current_func].add_edge(self.current_node, if_exit, None);
@@ -454,7 +450,9 @@ impl CFGBuilder {
         let mut vec = Vec::new();
         let stmt = &self.func_data.stmt_pools[self.current_func][stmt_id];
         match stmt {
-            Stmt::Block(blck) => for stmt in &blck.body {},
+            Stmt::Block(_) => {
+                todo!()
+            }
             Stmt::Expr(expr_id) => {
                 if let Expr::Assign(assign) =
                     &self.func_data.expr_pools[self.current_func][*expr_id]
@@ -500,7 +498,7 @@ impl CFGBuilder {
             return Ok(true);
         }
 
-        let stmt = &self.get_current_stmt_pool()[stmt_id];
+        //        let stmt = &self.get_current_stmt_pool()[stmt_id];
         let mut hir = self.stmt_to_hir(stmt_id)?;
         // bad
         // todo: something better than try_from that includes Call

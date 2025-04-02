@@ -16,7 +16,6 @@ dependencies = [
  "cfg",
  "codegen",
  "parser",
- "petgraph",
  "vm",
 ]
 

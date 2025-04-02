@@ -40,7 +40,6 @@ impl Parser {
         self.consume(Token::Return)?;
 
         if self.check(Token::Semicolon).is_ok() {
-            let current = self.current_func();
             return Ok(self.insert_stmt_in_current_func(Stmt::Return0));
         }
 
@@ -138,7 +137,6 @@ impl Parser {
 
     fn block_stmt(&mut self) -> Result<StmtId> {
         let blck = self.block()?;
-        let current = self.current_func();
         let blck_stmt = self.insert_stmt_in_current_func(Stmt::Block(blck));
         Ok(blck_stmt)
     }

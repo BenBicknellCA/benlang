@@ -1,20 +1,14 @@
-use crate::OpCode::LoadConst;
 use anyhow::{Result, anyhow};
-use cfg::CFG;
-use cfg::CFGBuilder;
 use cfg::basic_block::BasicBlock;
-use cfg::ir::ConstId;
-use cfg::ir::HIR;
+use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
-use parser::FuncData;
-use parser::FuncPool;
-use parser::expr::{Binary, Call, Unary};
-use parser::expr::{BinaryOp, Expr};
+use cfg::{CFG, CFGBuilder};
+use parser::expr::{Assign, Binary, BinaryOp, Call, Expr, Unary, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::object::{Binding, FuncId, Function, Nonlocal, Scope, Variables};
 use parser::scanner::{Symbol, SymbolTable};
-use parser::value::Literal;
-use parser::value::Value;
+use parser::value::{Literal, Value};
+use parser::{FuncData, FuncPool};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::Dfs;
 use slotmap::{SecondaryMap, SlotMap};
@@ -200,24 +194,24 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn add_sentinal_jmp_at_idx(&mut self, idx: usize) -> usize {
+    pub fn add_sentinel_jmp_at_idx(&mut self, idx: usize) -> usize {
         self.func_protos[self.func_id].insert_op_at(idx, OpCode::Jmp(-1))
     }
 
-    pub fn add_sentinal_jmp(&mut self) -> usize {
+    pub fn add_sentinel_jmp(&mut self) -> usize {
         self.func_protos[self.func_id].insert_op(OpCode::Jmp(-1))
     }
 
-    pub fn patch_sentinal_jmp(&mut self, jmp_idx: usize, new_val: i32) {
+    pub fn patch_sentinel_jmp(&mut self, jmp_idx: usize, new_val: i32) {
         if let Some(OpCode::Jmp(jmp_size)) =
             self.func_protos[self.func_id].bytecode.get_mut(jmp_idx)
         {
             return *jmp_size = new_val;
         }
-        panic!("could not patch sentinal jmp");
+        panic!("could not patch sentinel jmp");
     }
 
-    pub fn compile_anon_func(&mut self, func: &Function) -> Result<RegIdx> {
+    pub fn compile_anon_func(&mut self, _: &Function) -> Result<RegIdx> {
         todo!()
     }
 
@@ -273,9 +267,8 @@ impl<'a> Compiler<'a> {
         while let Some(node) = dfs.next(graph) {
             let beginning_of_node = self.func_protos[self.func_id].op_count;
             beginning_end.insert(node, (beginning_of_node, None));
-            let node_weight = &self.cfg[node];
 
-            result_reg = self.compile_body(node, &self.cfg[node], &mut jmps_to_patch)?;
+            result_reg = self.compile_body(&self.cfg[node], &mut jmps_to_patch)?;
 
             beginning_end.get_mut(&node).unwrap().1 = Some(self.func_protos[self.func_id].op_count);
         }
@@ -289,7 +282,7 @@ impl<'a> Compiler<'a> {
 
             let jmp_to = node_end as i32 - *idx as i32;
 
-            self.patch_sentinal_jmp(*idx, jmp_to);
+            self.patch_sentinel_jmp(*idx, jmp_to);
         }
 
         self.func_protos[self.func_id].insert_op(OpCode::Return0);
@@ -308,7 +301,7 @@ impl<'a> Compiler<'a> {
     pub fn emit_load_const_at(&mut self, value: &Value, dst: RegIdx) -> Result<RegOrConst> {
         if let Value::Literal(literal) = value {
             let const_id = self.func_protos[self.func_id].const_pool.insert(*literal);
-            self.func_protos[self.func_id].insert_op(LoadConst(dst, const_id));
+            self.func_protos[self.func_id].insert_op(OpCode::LoadConst(dst, const_id));
             return Ok(RegOrConst::Reg(dst));
         }
         Err(anyhow!("could not emit load const for {value:?}"))
@@ -357,7 +350,6 @@ impl<'a> Compiler<'a> {
     pub fn compile_binary_not_cmp(&mut self, binary: &Binary) -> Result<RegOrConst> {
         let op = &binary.op;
         let dst = self.acquire_reg();
-        println!("dst: {dst}");
         let lhs_reg = self.resolve_arg(binary.lhs)?;
         let rhs_reg = self.resolve_arg(binary.rhs)?;
         let opcode = match op {
@@ -372,13 +364,15 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn emit_unary_bytecode(&mut self, unary: &Unary) -> Result<RegOrConst> {
-        todo!()
-        //        let op = &unary.op; let dst = self.gen_load(unary.opnd);
-        //        let opcode = match op {
-        //            UnaryOp::Bang => OpCode::Not(RegOrExpr::Reg(dst)),
-        //            UnaryOp::Minus => OpCode::Neg(RegOrExpr::Reg(dst)),
-        //        };
-        //        self.func_proto.insert_op(opcode)
+        let op = &unary.op;
+        let dst = self.compile_expr(unary.opnd)?;
+        let opcode = match op {
+            UnaryOp::Bang => OpCode::Not(dst),
+            UnaryOp::Minus => OpCode::Neg(dst),
+        };
+        Ok(RegOrConst::Reg(
+            self.func_protos[self.func_id].insert_op(opcode) as u8,
+        ))
     }
 
     pub fn resolve_value(&mut self, value: &Value) -> Result<ConstId> {
@@ -437,8 +431,7 @@ impl<'a> Compiler<'a> {
         let dest = self.acquire_reg();
         //        // allocate a register for a closure environment pointer
         //        let _closure_env = self.acquire_reg();
-        //
-        //        // evaluate arguments first
+
         let arg_list = &call.args;
         let func_to_call = call.callee.unwrap();
         let function = self.resolve_var(&func_to_call)?;
@@ -446,26 +439,18 @@ impl<'a> Compiler<'a> {
         for arg in arg_list {
             let src = self.compile_expr(*arg)?;
 
-            println!("SRC: {src:?} DEST: {dest:?}");
-            // if a local variable register was returned, we need to copy the register to the arg
-            // list. Bound registers are necessarily lower indexes than where the function call is
-            // situated because expression scope and register acquisition progresses the register
-            // index in use.
             if src.get_reg() <= dest as usize {
                 let dest = self.acquire_reg();
                 self.func_protos[self.func_id].insert_op(OpCode::Copy(dest, src));
             }
         }
 
-        // put the function pointer in the last register of the call so it'll be discarded
-        //                let function = self.compile_eval(function_expr)?;
         self.func_protos[self.func_id].insert_op(OpCode::Call(
             function,
             dest,
             call.arg_count as u8,
         ));
 
-        //         ignore use of any registers beyond the result once the call is complete
         self.func_protos[self.func_id].reset_reg(dest + 1);
 
         Ok(dest.into())
@@ -489,13 +474,16 @@ impl<'a> Compiler<'a> {
         todo!("nested func")
     }
 
+    pub fn emit_assign_bytecode(&mut self, _: &Assign) -> Result<RegOrConst> {
+        todo!()
+    }
+
     pub fn compile_expr(&mut self, expr: ExprId) -> Result<RegOrConst> {
         let to_match: &Expr = &self.func_data.expr_pools[self.func_id][expr];
-        println!("expr: {to_match:?}");
         match to_match {
             Expr::Binary(bin) => self.compile_binary(bin),
             Expr::Unary(un) => self.emit_unary_bytecode(un),
-            Expr::Assign(assign) => self.emit_assign_bytecode(assign.name, assign.val),
+            Expr::Assign(assign) => self.emit_assign_bytecode(assign),
             Expr::Call(call) => self.compile_call(call),
             Expr::Stmt(stmt) => {
                 todo!()
@@ -517,17 +505,8 @@ impl<'a> Compiler<'a> {
         self.func_protos[self.func_id].acquire_reg()
     }
 
-    pub fn emit_assign_bytecode(&mut self, name: Symbol, val: ExprId) -> Result<RegOrConst> {
-        todo!()
-    }
-
-    pub fn gen_func_decl_bytecode(&self, cfg: &CFG, bytecode: &mut Bytecode) -> usize {
-        todo!()
-    }
-
     pub fn emit_bytecode(
         &mut self,
-        node: NodeIndex,
         hir: &HIR,
         jmps: &mut HashMap<usize, NodeIndex>,
     ) -> Result<RegOrConst> {
@@ -535,11 +514,11 @@ impl<'a> Compiler<'a> {
             HIR::Expr(expr_id) => {
                 return self.compile_expr(*expr_id);
             }
-            HIR::Var(assign) => {
+            HIR::Var(_) => {
                 todo!()
             }
 
-            HIR::Assign(assign) => {
+            HIR::Assign(_) => {
                 todo!()
             }
             HIR::Return0 => {
@@ -564,13 +543,12 @@ impl<'a> Compiler<'a> {
 
     pub fn compile_body(
         &mut self,
-        node: NodeIndex,
         block: &BasicBlock,
         jmps: &mut HashMap<usize, NodeIndex>,
     ) -> Result<RegOrConst> {
         let mut res = 0.into();
         for hir in block.borrow_stmts() {
-            res = self.emit_bytecode(node, hir, jmps)?;
+            res = self.emit_bytecode(hir, jmps)?;
         }
         Ok(res)
     }

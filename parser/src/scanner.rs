@@ -30,7 +30,7 @@ pub enum Token {
     LessEqual,
     Identifier(Symbol),
     StringLiteral(Symbol),
-    Number(f64),
+    Number(u32),
     //todo
     //    Double(f32),
     And,
@@ -58,6 +58,7 @@ pub enum Token {
     EOF,
     BitAnd,
     BitOr,
+    Float(f32),
 }
 
 impl Token {
@@ -178,6 +179,7 @@ impl From<Token> for usize {
             Token::EOF => 47,
             Token::BitAnd => 48,
             Token::BitOr => 49,
+            Token::Float(_) => 50,
         }
     }
 }
@@ -205,7 +207,10 @@ impl Scanner<'_> {
             '\n' => Token::Discard,
             ' ' => Token::Discard,
             '+' => Token::Plus,
-            '-' => Token::Minus,
+            '-' => match self.char_iter.next_if(|(_pos, ch)| !ch.is_ascii_digit()) {
+                Some(_minus) => Token::Minus,
+                None => self.scan_digit(pos),
+            },
             '=' => match self.char_iter.next_if_eq(&(pos + 1, '=')) {
                 Some(_equals) => Token::EqualEqual,
                 None => Token::Equal,
@@ -271,12 +276,11 @@ impl Scanner<'_> {
         }
     }
 
-    pub fn scan_digit(&mut self, pos: usize) {
-        // feels finnicky, avoids allocating a vec to hold ints during scanning
+    pub fn scan_digit(&mut self, pos: usize) -> Token {
         let mut end = 0;
-        while let Some((_pos, _)) = self
+        while let Some((_pos, ch)) = self
             .char_iter
-            .next_if(|(_pos, ch)| ch.is_numeric() || *ch == '.')
+            .next_if(|(_pos, ch)| ch.is_numeric() || *ch == '.' || *ch == '-')
         {
             end = _pos + 1;
         }
@@ -287,8 +291,13 @@ impl Scanner<'_> {
         }
 
         let num_string: &str = &self.source[pos..end];
-        let num_flt: f64 = num_string.parse().expect("Invalid number format");
-        self.tokens.push(Token::Number(num_flt));
+
+        if let Ok(res) = num_string.parse::<u32>() {
+            Token::Number(res)
+        } else {
+            Token::Float(num_string.parse::<f32>().expect("Invalid number format"))
+        }
+
     }
 
     pub fn scan_func_decl() -> Token {
@@ -338,7 +347,10 @@ impl Scanner<'_> {
     pub fn scan(&mut self) {
         while let Some((pos, ch)) = self.char_iter.next() {
             match ch {
-                ch if ch.is_numeric() || ch == '.' => self.scan_digit(pos),
+                ch if ch.is_numeric() || ch == '.' => {
+                    let token = self.scan_digit(pos);
+                    self.tokens.push(token);
+                }
                 ch if ch.is_alphabetic() || ch == '_' => self.scan_alphabetic(pos),
                 ch if ch.is_ascii_punctuation() => self.scan_punctuation(&ch, pos),
                 ch if ch.is_whitespace() => {}
@@ -360,7 +372,6 @@ impl Scanner<'_> {
 
 #[cfg(test)]
 mod scanner_tests {
-
     use super::*;
 
     #[test]
@@ -382,9 +393,9 @@ mod scanner_tests {
             vec![
                 Token::If,
                 Token::LeftParen,
-                Token::Number(10.0),
+                Token::Number(10),
                 Token::EqualEqual,
-                Token::Number(11.0),
+                Token::Number(11),
                 Token::RightParen,
                 Token::LeftBrace,
                 Token::Var,
@@ -420,12 +431,11 @@ mod scanner_tests {
             Token::Var,
             Token::Identifier(test_iden),
             Token::Equal,
-            Token::Number(100.0),
+            Token::Number(100),
             Token::Star,
-            Token::Number(200.3),
+            Token::Float(200.3_f32),
             Token::Plus,
-            Token::Minus,
-            Token::Number(69.2),
+            Token::Float(-69.2),
             Token::Semicolon,
             Token::EOF,
         ];
@@ -474,11 +484,11 @@ mod scanner_tests {
             Token::RightBrace,
             name,
             Token::LeftParen,
-            Token::Number(1.0),
+            Token::Number(1),
             Token::Comma,
-            Token::Number(2.0),
+            Token::Number(2),
             Token::Comma,
-            Token::Number(3.0),
+            Token::Number(3),
             Token::RightParen,
             Token::Semicolon,
             Token::EOF,

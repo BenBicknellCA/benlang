@@ -33,7 +33,7 @@ impl CFGBuilder {
     ) -> Result<()> {
         if let Ok(phi_or_expr) = ssa.read_variable(assign.name, node, cfg) {
             match phi_or_expr {
-                PhiOrExpr::Phi(phi) => {}
+                PhiOrExpr::Phi(_) => {}
                 PhiOrExpr::Expr(new_expr) => {
                     assign.update_val(new_expr);
                 }
@@ -155,7 +155,7 @@ impl CFGBuilder {
             }
 
             UnaryOp::Minus => {
-                assert!(folded_opnd.is_number());
+                assert!(folded_opnd.can_neg());
                 -folded_opnd
             }
         };

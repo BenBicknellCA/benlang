@@ -23,7 +23,8 @@ impl Default for Value {
 pub enum Literal {
     Function(FuncId),
     String(Symbol),
-    Number(f64),
+    Number(u32),
+    Float(f32),
     Bool(bool),
     #[default]
     Nil,
@@ -32,6 +33,10 @@ pub enum Literal {
 impl Literal {
     pub fn is_bool(self) -> bool {
         matches!(self, Literal::Bool(_))
+    }
+
+    pub fn can_neg(&self) -> bool {
+        matches!(self, Literal::Float(_))
     }
 
     pub fn get_bool(self) -> Result<bool> {
@@ -73,7 +78,7 @@ impl Literal {
         }
         Err(anyhow!("Cannot get symbol from: {:?}", self))
     }
-    pub fn get_number(&self) -> Result<f64> {
+    pub fn get_number(&self) -> Result<u32> {
         if let Literal::Number(num) = self {
             return Ok(*num);
         }
@@ -162,8 +167,8 @@ impl Neg for Literal {
     type Output = Self;
 
     fn neg(self) -> Self {
-        if let Literal::Number(num) = self {
-            return Literal::Number(num.neg());
+        if let Literal::Float(num) = self {
+            return Literal::Float(num.neg());
         };
         panic!("Cannot negate {:?}", self)
     }
