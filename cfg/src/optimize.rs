@@ -154,10 +154,12 @@ impl CFGBuilder {
                 !folded_opnd
             }
 
-            UnaryOp::Minus => {
-                assert!(folded_opnd.is_number());
-                -folded_opnd
-            }
+            UnaryOp::Minus => todo!()
+
+            //            UnaryOp::Minus => {
+            //                assert!(folded_opnd.is_float());
+            //                -folded_opnd
+            //            }
         };
         expr_pool[un] = Expr::Value(Value::Literal(val));
         Ok(())

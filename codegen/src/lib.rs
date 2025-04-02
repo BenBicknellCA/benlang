@@ -200,21 +200,21 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn add_sentinal_jmp_at_idx(&mut self, idx: usize) -> usize {
+    pub fn add_sentinel_jmp_at_idx(&mut self, idx: usize) -> usize {
         self.func_protos[self.func_id].insert_op_at(idx, OpCode::Jmp(-1))
     }
 
-    pub fn add_sentinal_jmp(&mut self) -> usize {
+    pub fn add_sentinel_jmp(&mut self) -> usize {
         self.func_protos[self.func_id].insert_op(OpCode::Jmp(-1))
     }
 
-    pub fn patch_sentinal_jmp(&mut self, jmp_idx: usize, new_val: i32) {
+    pub fn patch_sentinel_jmp(&mut self, jmp_idx: usize, new_val: i32) {
         if let Some(OpCode::Jmp(jmp_size)) =
             self.func_protos[self.func_id].bytecode.get_mut(jmp_idx)
         {
             return *jmp_size = new_val;
         }
-        panic!("could not patch sentinal jmp");
+        panic!("could not patch sentinel jmp");
     }
 
     pub fn compile_anon_func(&mut self, func: &Function) -> Result<RegIdx> {
@@ -289,7 +289,7 @@ impl<'a> Compiler<'a> {
 
             let jmp_to = node_end as i32 - *idx as i32;
 
-            self.patch_sentinal_jmp(*idx, jmp_to);
+            self.patch_sentinel_jmp(*idx, jmp_to);
         }
 
         self.func_protos[self.func_id].insert_op(OpCode::Return0);

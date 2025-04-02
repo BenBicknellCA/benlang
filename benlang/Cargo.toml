@@ -8,5 +8,12 @@ parser = { path = "../parser" }
 cfg = { path = "../cfg" }
 codegen = { path = "../codegen" }
 vm = { path = "../vm" }
-petgraph = "0.7.1"
 anyhow = "1.0.97"
+
+# [dev-dependencies]
+# criterion = "0.5.1"
+#
+# [[bench]]
+# harness = false
+# name = "my_benchmark"
+

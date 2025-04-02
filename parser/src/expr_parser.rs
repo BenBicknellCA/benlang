@@ -40,7 +40,7 @@ impl Parser {
         self.insert_expr(Value::Literal(Literal::String(string_key)).into())
     }
 
-    fn number(&mut self, num: f64) -> Result<ExprId> {
+    fn number(&mut self, num: u32) -> Result<ExprId> {
         self.insert_expr(Value::Literal(Literal::Number(num)).into())
     }
 

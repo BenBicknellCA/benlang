@@ -30,7 +30,7 @@ pub enum Token {
     LessEqual,
     Identifier(Symbol),
     StringLiteral(Symbol),
-    Number(f64),
+    Number(u32),
     //todo
     //    Double(f32),
     And,
@@ -58,6 +58,7 @@ pub enum Token {
     EOF,
     BitAnd,
     BitOr,
+    Float(f32),
 }
 
 impl Token {
@@ -178,6 +179,7 @@ impl From<Token> for usize {
             Token::EOF => 47,
             Token::BitAnd => 48,
             Token::BitOr => 49,
+            Token::Float(_) => 50,
         }
     }
 }
@@ -286,9 +288,17 @@ impl Scanner<'_> {
             end = pos + 1;
         }
 
+
         let num_string: &str = &self.source[pos..end];
-        let num_flt: f64 = num_string.parse().expect("Invalid number format");
-        self.tokens.push(Token::Number(num_flt));
+
+        // TODO: not ideal
+        let num = if let Ok(res) = num_string.parse::<u32>() {
+            Token::Number(res)
+        } else {
+            Token::Float(num_string.parse::<f32>().expect("Invalid number format"))
+        };
+
+        self.tokens.push(num);
     }
 
     pub fn scan_func_decl() -> Token {
@@ -382,9 +392,9 @@ mod scanner_tests {
             vec![
                 Token::If,
                 Token::LeftParen,
-                Token::Number(10.0),
+                Token::Number(10),
                 Token::EqualEqual,
-                Token::Number(11.0),
+                Token::Number(11),
                 Token::RightParen,
                 Token::LeftBrace,
                 Token::Var,
@@ -420,12 +430,12 @@ mod scanner_tests {
             Token::Var,
             Token::Identifier(test_iden),
             Token::Equal,
-            Token::Number(100.0),
+            Token::Number(100),
             Token::Star,
-            Token::Number(200.3),
+            Token::Number(200),
             Token::Plus,
             Token::Minus,
-            Token::Number(69.2),
+            Token::Number(69),
             Token::Semicolon,
             Token::EOF,
         ];
@@ -474,11 +484,11 @@ mod scanner_tests {
             Token::RightBrace,
             name,
             Token::LeftParen,
-            Token::Number(1.0),
+            Token::Number(1),
             Token::Comma,
-            Token::Number(2.0),
+            Token::Number(2),
             Token::Comma,
-            Token::Number(3.0),
+            Token::Number(3),
             Token::RightParen,
             Token::Semicolon,
             Token::EOF,
