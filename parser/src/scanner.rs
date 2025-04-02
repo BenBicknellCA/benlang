@@ -59,6 +59,7 @@ pub enum Token {
     BitAnd,
     BitOr,
     Float(f32),
+    Mod,
 }
 
 impl Token {
@@ -180,6 +181,7 @@ impl From<Token> for usize {
             Token::BitAnd => 48,
             Token::BitOr => 49,
             Token::Float(_) => 50,
+            Token::Mod => 50,
         }
     }
 }
@@ -250,6 +252,7 @@ impl Scanner<'_> {
                 Some(_equals) => Token::Or,
                 None => Token::BitOr,
             },
+            '%' => Token::Mod,
 
             '"' => {
                 let mut end = 0;
@@ -267,7 +270,7 @@ impl Scanner<'_> {
             }
 
             //TODO placeholder
-            _ => Token::Invalid,
+            _ => todo!("{pass_token}"),
         };
         match token {
             Token::Discard => {}

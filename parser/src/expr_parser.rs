@@ -15,7 +15,7 @@ new_key_type! {pub struct ExprId;}
 type ExprPlaceholder = Expr;
 
 impl Parser {
-    fn parse_expression(&mut self, prec: Precedence) -> Result<ExprId> {
+    pub fn parse_expression(&mut self, prec: Precedence) -> Result<ExprId> {
         let mut token = self.advance()?;
         let mut left: ExprId = self.prefix(token)?;
 
@@ -99,6 +99,7 @@ impl Parser {
             | Token::LessEqual
             | Token::GreaterEqual
             | Token::Greater
+            | Token::Mod
             | Token::Less => self.binary(left),
             Token::LeftParen => self.call(left),
             _ => Err(ParseError::InvalidInfix { infix: token }.into()),

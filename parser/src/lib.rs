@@ -13,7 +13,7 @@ use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;
 use crate::stmt_parser::*;
-use anyhow::{Error, Result, anyhow, ensure};
+use anyhow::{anyhow, ensure, Error, Result};
 use slotmap::{SecondaryMap, SlotMap};
 use thiserror::Error;
 
@@ -87,6 +87,7 @@ impl From<Token> for Precedence {
             Token::Minus => Precedence::Term,
             Token::Slash => Precedence::Factor,
             Token::Star => Precedence::Factor,
+            Token::Mod => Precedence::Factor,
             Token::BangEqual => Precedence::Equality,
             Token::Greater => Precedence::Comparison,
             Token::GreaterEqual => Precedence::Comparison,

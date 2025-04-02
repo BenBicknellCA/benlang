@@ -1,11 +1,11 @@
+use crate::expr_parser::ExprId;
 use crate::ParseError;
 use crate::Stmt;
-use crate::expr_parser::ExprId;
 
 use crate::scanner::{Symbol, Token};
 use crate::value::{Literal, Value};
 
-use anyhow::{Error, Result, anyhow};
+use anyhow::{anyhow, Error, Result};
 use enum_dispatch::enum_dispatch;
 
 #[derive(Debug, PartialEq, Clone, PartialOrd, Hash, Eq, Copy)]
@@ -31,6 +31,7 @@ pub enum BinaryOp {
     LessEqual,
     Or,
     And,
+    Mod,
 }
 
 impl TryFrom<Token> for UnaryOp {
@@ -61,6 +62,7 @@ impl TryFrom<Token> for BinaryOp {
             Token::Less => BinaryOp::LessThan,
             Token::And => BinaryOp::And,
             Token::Or => BinaryOp::Or,
+            Token::Mod => BinaryOp::Mod,
 
             _ => return Err(ParseError::InvalidOp { op: token }.into()),
         };

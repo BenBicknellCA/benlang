@@ -3,7 +3,7 @@ use crate::expr::BinaryOp;
 use crate::object::FuncId;
 use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use std::mem::discriminant;
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
@@ -85,10 +85,7 @@ impl Literal {
         Err(anyhow!("Cannot get number from: {:?}", self))
     }
     pub fn is_number(&self) -> bool {
-        if let Literal::Number(_) = self {
-            return true;
-        }
-        false
+        matches!(self, Literal::Number(_) | Literal::Float(_))
     }
 
     pub fn fold_and_or(&self, op: BinaryOp, rhs: &Literal) -> Result<bool> {
@@ -114,6 +111,7 @@ impl Mul for Literal {
         panic!("Cannot mul {:?} * {:?}", self, other)
     }
 }
+
 
 impl Div for Literal {
     type Output = Literal;

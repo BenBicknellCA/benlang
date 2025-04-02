@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use cfg::basic_block::BasicBlock;
 use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
-use cfg::{CFG, CFGBuilder};
+use cfg::{CFGBuilder, CFG};
 use parser::expr::{Assign, Binary, BinaryOp, Call, Expr, Unary, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::object::{Binding, FuncId, Function, Nonlocal, Scope, Variables};
@@ -77,6 +77,7 @@ pub enum OpCode {
     CloseUpvalue(RegIdx),
     Call(RegIdx, u8, u8),
     Copy(RegIdx, RegOrConst),
+    Print(RegOrConst),
     //    Div(RegIdx, RegIdx, RegIdx),
     //    Mod(RegIdx, RegIdx, RegIdx),
     //    Pow(RegIdx, RegIdx, RegIdx),
@@ -357,7 +358,8 @@ impl<'a> Compiler<'a> {
             BinaryOp::Star => OpCode::Mul(dst, lhs_reg, rhs_reg),
             BinaryOp::Minus => OpCode::Sub(dst, lhs_reg, rhs_reg),
             BinaryOp::Slash => OpCode::Div(dst, lhs_reg, rhs_reg),
-            _ => unreachable!(),
+            BinaryOp::Mod => OpCode::Mod(dst, lhs_reg, rhs_reg),
+            _ => unreachable!("{:?}", op),
         };
         self.func_protos[self.func_id].insert_op(opcode);
         Ok(RegOrConst::Reg(dst))

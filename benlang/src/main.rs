@@ -1,8 +1,8 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
 use codegen::Compiler;
-use parser::Parser;
 use parser::scanner::Scanner;
+use parser::Parser;
 use vm::VM;
 
 fn main() -> Result<()> {
@@ -20,15 +20,29 @@ fn main() -> Result<()> {
 }
 
 pub fn prep_parser_cfg() -> Parser {
-    static SOURCE: &str = "
-            func fib(n) {
-                if (n <= 1) {
-                    return n;
+    static SOURCE: &str =
+        "func fizz_buzz(n) {
+                    while (n <= 100) {
+                        if (n % 3 == 0) {
+                            print(\"fizz\");
+                        }
+                        if (n % 5 == 0) {
+                            print(\"buzz\");
+                        }
+                        n = n + 1;
+                    }
                 }
-                return fib(n - 1) + fib(n - 2);
-            }
-            fib(20);
-            ";
+                fizz_buzz(100);"
+    ;
+    //    static SOURCE: &str = "
+    //            func fib(n) {
+    //                if (n <= 1) {
+    //                    return n;
+    //                }
+    //                return fib(n - 1) + fib(n - 2);
+    //            }
+    //            fib(20);
+    //            ";
     let mut scanner = Scanner::new(SOURCE);
     scanner.scan();
 
