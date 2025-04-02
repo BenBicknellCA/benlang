@@ -124,7 +124,6 @@ impl Variables {
     }
 }
 
-
 #[derive(Debug, Default, PartialEq, Eq, Clone, PartialOrd, Ord, Hash)]
 pub struct Function {
     pub name: Option<Symbol>,
@@ -151,7 +150,6 @@ impl Function {
         }
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone, PartialOrd, Hash, Eq, Copy)]
 pub enum Object {

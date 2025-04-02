@@ -111,7 +111,6 @@ impl VM {
         }
     }
 
-
     pub fn get_frame_pointer(&self) -> usize {
         self.frame_pointer
     }
@@ -121,7 +120,6 @@ impl VM {
         self.call_stack.pop();
     }
 
-
     pub fn get_next_op(&self) {}
 
     fn eval(&mut self) -> Result<()> {
@@ -130,7 +128,6 @@ impl VM {
             let op = &instructions.bytecode[self.call_stack[self.frame_pointer].ip];
             let ip = self.call_stack[self.frame_pointer].ip;
             let fp = self.frame_pointer;
-
 
             match op {
                 OpCode::Add(dst, lhs, rhs) => {
@@ -155,7 +152,9 @@ impl VM {
                     let res = Value::Literal(val_lhs.get_literal()? - val_rhs.get_literal()?);
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
-                    println!("call_stack[{fp}][{dst}] = {lhs:?}: {val_lhs:?} - {rhs:?}: {val_rhs:?}", );
+                    println!(
+                        "call_stack[{fp}][{dst}] = {lhs:?}: {val_lhs:?} - {rhs:?}: {val_rhs:?}",
+                    );
                     //                    println!("call_stack[{fp}][{dst:?}] = {lhs:?} - {rhs:?} : {:?}",
                     //                             self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize]
                     //                   );
@@ -276,18 +275,23 @@ impl VM {
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
 
-
                 // 1 is func_reg, 2 is func_id, 3 is arg_count
                 OpCode::Call(func_id, ret_reg, arg_count) => {
                     print!("{fp}: {ip}: Call: ");
-                    let func: FuncId = self.call_stack[self.frame_pointer].registers.get()[*func_id as usize].get_literal()?.get_func()?;
-                    self.call_stack.push(CallFrame::new(func, *ret_reg as usize, fp));
+                    let func: FuncId = self.call_stack[self.frame_pointer].registers.get()
+                        [*func_id as usize]
+                        .get_literal()?
+                        .get_func()?;
+                    self.call_stack
+                        .push(CallFrame::new(func, *ret_reg as usize, fp));
 
-
-                    println!("func in Reg[{func_id:?}], {arg_count} args, return to Reg[{ret_reg:?}]");
+                    println!(
+                        "func in Reg[{func_id:?}], {arg_count} args, return to Reg[{ret_reg:?}]"
+                    );
                     let func_reg = *func_id as usize;
                     for arg in 1..=(*arg_count as usize) {
-                        let arg_val = self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
+                        let arg_val =
+                            self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
                         //                        println!("arg: {arg}");
                         //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + ip - 1]);
                         self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg] =
@@ -296,7 +300,6 @@ impl VM {
                         //                        println!("{:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
                         //                        println!("res: {:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
                     }
-
 
                     self.call_stack[self.frame_pointer].ip += 1;
                     self.frame_pointer += 1;
@@ -313,19 +316,16 @@ impl VM {
                     let ret_fp = self.call_stack[self.frame_pointer].return_frame;
                     let ret_reg = self.call_stack[self.frame_pointer].return_address;
 
-
-                    let ret_val = self.call_stack[self.frame_pointer].registers.get()[ret_val.get_reg()];
+                    let ret_val =
+                        self.call_stack[self.frame_pointer].registers.get()[ret_val.get_reg()];
                     println!("{ret_val:?}");
-
 
                     //                    println!("{ret_val:?} to {return_to:?}");
 
-                    self.call_stack[ret_fp].registers.get_mut()[ret_reg] =
-                        ret_val;
+                    self.call_stack[ret_fp].registers.get_mut()[ret_reg] = ret_val;
 
                     self.frame_pointer = ret_fp;
                     self.call_stack.pop();
-
 
                     //                    self.call_stack[self.frame_pointer].registers.get_mut()[return_address] =
                     //                        ret_val;
@@ -335,14 +335,11 @@ impl VM {
                 OpCode::GetGlobal(dst, src) => {
                     print!("{fp}: {ip}: GetGlobal: ");
 
-
                     let dst = dst.get_reg();
                     let name = self.opnd(*src).get_literal()?.get_symbol()?;
                     let val = self.globals[&name];
 
-
                     self.call_stack[self.frame_pointer].registers.get_mut()[dst] = val;
-
 
                     println!("dst: {dst:?} src: {src:?}");
 
@@ -351,15 +348,12 @@ impl VM {
                 OpCode::SetGlobal(dst, src) => {
                     print!("{fp}: {ip}: SetGlobal: ");
 
-
                     let name = self.opnd(*dst).get_literal()?.get_symbol()?;
                     let val = self.opnd(*src);
 
                     println!("{name:?} : {val:?} ");
 
-
                     self.globals.insert(name, val);
-
 
                     self.call_stack[self.frame_pointer].ip += 1;
                 }

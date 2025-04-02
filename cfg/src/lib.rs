@@ -21,9 +21,9 @@ use parser::{
     stmt::{Block, Conditional, If, Stmt, While},
 };
 
+use parser::value::{Literal, Value};
 use petgraph::{Graph, graph::NodeIndex};
 use slotmap::SecondaryMap;
-use parser::value::{Literal, Value};
 
 pub type CFG = Graph<BasicBlock, Option<bool>>;
 
@@ -239,7 +239,6 @@ impl CFGBuilder {
             .get(cond.cond())
             .expect("cond id")
     }
-
 
     pub fn expr_to_hir(&self, expr_id: ExprId) -> Result<HIR> {
         let expr = &self.func_data.expr_pools[self.current_func][expr_id];
