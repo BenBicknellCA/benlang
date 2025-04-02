@@ -8,7 +8,7 @@ pub mod value;
 
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::object::{FuncId, Function, Nonlocal, Variables};
+use crate::object::{FuncId, Function, Variables};
 use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;

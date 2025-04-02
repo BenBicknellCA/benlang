@@ -2,7 +2,7 @@ use crate::Parser;
 use crate::expr::*;
 use crate::expr_parser::*;
 
-use crate::object::{Function, Object};
+use crate::object::Function;
 use crate::scanner::Symbol;
 use crate::scanner::Token;
 use crate::stmt::*;

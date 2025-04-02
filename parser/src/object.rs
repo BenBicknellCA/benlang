@@ -1,6 +1,6 @@
 use crate::scanner::Symbol;
 use crate::stmt::Block;
-use slotmap::{SecondaryMap, new_key_type};
+use slotmap::new_key_type;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 new_key_type! {pub struct FuncId; pub struct ObjId;}
@@ -42,6 +42,12 @@ impl Variable {
 #[derive(Debug)]
 pub struct Scope {
     pub bindings: HashMap<Symbol, Variable>,
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Scope {
@@ -94,6 +100,12 @@ pub struct Variables {
     pub scopes: Vec<Scope>,
     pub nonlocals: RefCell<HashMap<Symbol, Nonlocal>>,
     pub next_upvalue: Cell<u8>,
+}
+
+impl Default for Variables {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Variables {
