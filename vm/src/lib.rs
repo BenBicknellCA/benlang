@@ -1,7 +1,7 @@
-use anyhow::{Error, Result};
+use anyhow::Result;
 use parser::value::Literal;
 use parser::value::Value;
-use slotmap::{SecondaryMap, SlotMap};
+use slotmap::SecondaryMap;
 
 use codegen::OpCode;
 use codegen::{FuncProto, RegOrConst};
@@ -106,7 +106,7 @@ impl VM {
         let func_id = frame.func;
         let const_pool = &self.func_protos[func_id].const_pool;
         match reg_or_const {
-            RegOrConst::Reg(reg) => frame.registers.get()[reg as usize].clone(),
+            RegOrConst::Reg(reg) => frame.registers.get()[reg as usize],
             RegOrConst::Const(const_) => Value::Literal(const_pool[const_]),
         }
     }
@@ -150,8 +150,8 @@ impl VM {
 
                     //                    println!("{:?}", self.call_stack[self.frame_pointer].registers.get());
 
-                    let val_lhs = self.opnd(*lhs).clone();
-                    let val_rhs = self.opnd(*rhs).clone();
+                    let val_lhs = self.opnd(*lhs);
+                    let val_rhs = self.opnd(*rhs);
                     let res = Value::Literal(val_lhs.get_literal()? - val_rhs.get_literal()?);
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
@@ -190,7 +190,7 @@ impl VM {
                     print!("{fp}: {ip}: LoadConst: ");
                     let func = &self.call_stack[self.frame_pointer];
                     let func_id = func.func;
-                    let const_ = self.func_protos[func_id].const_pool[*const_id].clone();
+                    let const_ = self.func_protos[func_id].const_pool[*const_id];
 
                     println!(
                         "call_stack[frame_pointer][{dst:?}] =  {:?}",
@@ -271,7 +271,7 @@ impl VM {
                     println!("DST: {dst:?} SRC: {src:?}");
 
                     print!("{fp}: {ip}: Copy: ");
-                    self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src.clone();
+                    self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src;
                     println!("[{dst}] = {src:?}");
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
@@ -291,7 +291,7 @@ impl VM {
                         //                        println!("arg: {arg}");
                         //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + ip - 1]);
                         self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg] =
-                            self.call_stack[self.frame_pointer].registers.get()[arg + func_reg].clone();
+                            self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
                         //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + func_reg]);
                         //                        println!("{:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
                         //                        println!("res: {:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
@@ -314,7 +314,7 @@ impl VM {
                     let ret_reg = self.call_stack[self.frame_pointer].return_address;
 
 
-                    let ret_val = self.call_stack[self.frame_pointer].registers.get()[ret_val.get_reg()].clone();
+                    let ret_val = self.call_stack[self.frame_pointer].registers.get()[ret_val.get_reg()];
                     println!("{ret_val:?}");
 
 
