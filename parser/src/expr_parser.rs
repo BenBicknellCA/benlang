@@ -44,11 +44,9 @@ impl Parser {
         self.insert_expr(Value::Literal(Literal::Number(num)).into())
     }
 
-
     fn float(&mut self, flt: f32) -> Result<ExprId> {
         self.insert_expr(Value::Literal(Literal::Float(flt)).into())
     }
-
 
     fn primary(&mut self, token: Token) -> Result<ExprId> {
         match token {

@@ -293,7 +293,6 @@ impl VM {
                 OpCode::Copy(dst, src) => {
                     let src = self.opnd(*src);
 
-
                     debug_printing!(print!("{fp}: {ip}: Copy: "), debug_cond);
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src;
                     debug_printing!(println!("[{dst}] = {src:?}"), debug_cond);

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
 use codegen::Compiler;
-use parser::scanner::Scanner;
 use parser::Parser;
+use parser::scanner::Scanner;
 use vm::VM;
 
 fn main() -> Result<()> {

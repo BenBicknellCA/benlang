@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cfg::basic_block::BasicBlock;
 use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
-use cfg::{CFGBuilder, CFG};
+use cfg::{CFG, CFGBuilder};
 use parser::expr::{Assign, Binary, BinaryOp, Call, Expr, Unary, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::object::{Binding, FuncId, Function, Nonlocal, Scope, Variables};
@@ -439,7 +439,6 @@ impl<'a> Compiler<'a> {
         for arg in arg_list {
             let src = self.compile_expr(*arg)?;
 
-
             if src.get_reg() <= dest as usize {
                 let dest = self.acquire_reg();
                 self.func_protos[self.func_id].insert_op(OpCode::Copy(dest, src));
@@ -505,7 +504,6 @@ impl<'a> Compiler<'a> {
     pub fn acquire_reg(&mut self) -> u8 {
         self.func_protos[self.func_id].acquire_reg()
     }
-
 
     pub fn emit_bytecode(
         &mut self,

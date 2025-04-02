@@ -70,13 +70,6 @@ impl Token {
         matches!(self, Token::Number(_))
     }
 
-    pub fn negate_number(&mut self) {
-        if let Token::Float(n) = self {
-            use std::ops::Neg;
-            n.neg();
-        }
-    }
-
     pub const fn is_unary_op(&self) -> bool {
         matches!(self, Token::Bang | Token::Minus)
     }
@@ -214,13 +207,9 @@ impl Scanner<'_> {
             '\n' => Token::Discard,
             ' ' => Token::Discard,
             '+' => Token::Plus,
-            '-' => match self.char_iter.next_if(|(_pos, ch)| !ch.is_digit(10)) {
-                Some(_minus) => {
-                    Token::Minus
-                },
-                None => {
-                    self.scan_digit(pos)
-                },
+            '-' => match self.char_iter.next_if(|(_pos, ch)| !ch.is_ascii_digit()) {
+                Some(_minus) => Token::Minus,
+                None => self.scan_digit(pos),
             },
             '=' => match self.char_iter.next_if_eq(&(pos + 1, '=')) {
                 Some(_equals) => Token::EqualEqual,
@@ -288,9 +277,8 @@ impl Scanner<'_> {
     }
 
     pub fn scan_digit(&mut self, pos: usize) -> Token {
-        // feels finnicky, avoids allocating a vec to hold ints during scanning
         let mut end = 0;
-        while let Some((_pos, _)) = self
+        while let Some((_pos, ch)) = self
             .char_iter
             .next_if(|(_pos, ch)| ch.is_numeric() || *ch == '.' || *ch == '-')
         {
@@ -304,14 +292,12 @@ impl Scanner<'_> {
 
         let num_string: &str = &self.source[pos..end];
 
-        // TODO: not ideal
-        let num = if let Ok(res) = num_string.parse::<u32>() {
+        if let Ok(res) = num_string.parse::<u32>() {
             Token::Number(res)
         } else {
             Token::Float(num_string.parse::<f32>().expect("Invalid number format"))
-        };
+        }
 
-        num
     }
 
     pub fn scan_func_decl() -> Token {
