@@ -70,6 +70,13 @@ impl Token {
         matches!(self, Token::Number(_))
     }
 
+    pub fn negate_number(&mut self) {
+        if let Token::Float(n) = self {
+            use std::ops::Neg;
+            n.neg();
+        }
+    }
+
     pub const fn is_unary_op(&self) -> bool {
         matches!(self, Token::Bang | Token::Minus)
     }
@@ -207,7 +214,14 @@ impl Scanner<'_> {
             '\n' => Token::Discard,
             ' ' => Token::Discard,
             '+' => Token::Plus,
-            '-' => Token::Minus,
+            '-' => match self.char_iter.next_if(|(_pos, ch)| !ch.is_digit(10)) {
+                Some(_minus) => {
+                    Token::Minus
+                },
+                None => {
+                    self.scan_digit(pos)
+                },
+            },
             '=' => match self.char_iter.next_if_eq(&(pos + 1, '=')) {
                 Some(_equals) => Token::EqualEqual,
                 None => Token::Equal,
@@ -273,12 +287,12 @@ impl Scanner<'_> {
         }
     }
 
-    pub fn scan_digit(&mut self, pos: usize) {
+    pub fn scan_digit(&mut self, pos: usize) -> Token {
         // feels finnicky, avoids allocating a vec to hold ints during scanning
         let mut end = 0;
         while let Some((_pos, _)) = self
             .char_iter
-            .next_if(|(_pos, ch)| ch.is_numeric() || *ch == '.')
+            .next_if(|(_pos, ch)| ch.is_numeric() || *ch == '.' || *ch == '-')
         {
             end = _pos + 1;
         }
@@ -297,7 +311,7 @@ impl Scanner<'_> {
             Token::Float(num_string.parse::<f32>().expect("Invalid number format"))
         };
 
-        self.tokens.push(num);
+        num
     }
 
     pub fn scan_func_decl() -> Token {
@@ -347,7 +361,10 @@ impl Scanner<'_> {
     pub fn scan(&mut self) {
         while let Some((pos, ch)) = self.char_iter.next() {
             match ch {
-                ch if ch.is_numeric() || ch == '.' => self.scan_digit(pos),
+                ch if ch.is_numeric() || ch == '.' => {
+                    let token = self.scan_digit(pos);
+                    self.tokens.push(token);
+                }
                 ch if ch.is_alphabetic() || ch == '_' => self.scan_alphabetic(pos),
                 ch if ch.is_ascii_punctuation() => self.scan_punctuation(&ch, pos),
                 ch if ch.is_whitespace() => {}
@@ -369,7 +386,6 @@ impl Scanner<'_> {
 
 #[cfg(test)]
 mod scanner_tests {
-
     use super::*;
 
     #[test]
@@ -431,10 +447,9 @@ mod scanner_tests {
             Token::Equal,
             Token::Number(100),
             Token::Star,
-            Token::Number(200),
+            Token::Float(200.3_f32),
             Token::Plus,
-            Token::Minus,
-            Token::Number(69),
+            Token::Float(-69.2),
             Token::Semicolon,
             Token::EOF,
         ];
