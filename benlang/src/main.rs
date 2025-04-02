@@ -1,10 +1,9 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
 use codegen::Compiler;
-use parser::Parser;
 use parser::scanner::Scanner;
+use parser::Parser;
 use vm::VM;
-
 
 fn main() -> Result<()> {
     let mut cfg_builder = build_cfg();
@@ -28,7 +27,7 @@ pub fn prep_parser_cfg() -> Parser {
                 }
                 return fib(n - 1) + fib(n - 2);
             }
-            fib(47);
+            fib(20);
             ";
     let mut scanner = Scanner::new(SOURCE);
     scanner.scan();

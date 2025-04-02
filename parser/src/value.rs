@@ -35,6 +35,10 @@ impl Literal {
         matches!(self, Literal::Bool(_))
     }
 
+    pub fn can_neg(&self) -> bool {
+        matches!(self, Literal::Float(_))
+    }
+
     pub fn get_bool(self) -> Result<bool> {
         if let Literal::Bool(boolval) = self {
             return Ok(boolval);

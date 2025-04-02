@@ -12,7 +12,7 @@ use slotmap::new_key_type;
 new_key_type! {pub struct ConstId;}
 
 #[derive(Debug, Clone, Copy)]
-pub enum HIR<'a> {
+pub enum HIR {
     Expr(ExprId),
     Return0,
     Return1(ExprId),

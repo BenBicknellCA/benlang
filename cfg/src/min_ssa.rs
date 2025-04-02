@@ -97,14 +97,14 @@ impl CFGBuilder {
         }
 
         self.func_to_cfg[self.current_func].filter_map(
-            |node_index, weight| {
+            |node_index, _| {
                 if node_map.contains(&node_index) {
                     Some(node_index)
                 } else {
                     None
                 }
             },
-            |edge_index, weight| {
+            |edge_index, _| {
                 if edges.contains(&edge_index) {
                     Some(edge_index)
                 } else {

@@ -3,12 +3,12 @@
 // Construction. CC 2013. Lecture Notes in Computer Science, vol 7791. Springer, Berlin, Heidelberg.
 // https://doi.org/10.1007/978-3-642-37051-9_6
 
-use crate::CFG;
 use crate::phi::*;
-use anyhow::{Result, anyhow};
-use parser::{ExprPool, expr_parser::ExprId, scanner::Symbol};
-use petgraph::Direction;
+use crate::CFG;
+use anyhow::{anyhow, Result};
+use parser::{expr_parser::ExprId, scanner::Symbol, ExprPool};
 use petgraph::graph::NodeIndex;
+use petgraph::Direction;
 use slotmap::new_key_type;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
@@ -173,9 +173,6 @@ impl SSABuilder {
         id
     }
 
-    fn get_users(&self, phi: PhiId) -> &[User] {
-        self.phi_users[phi].as_slice()
-    }
 
     pub fn seal_block(&mut self, block: NodeIndex, cfg: &CFG) -> Result<()> {
         let inc_phis: HashMap<Symbol, PhiId> = std::mem::take(&mut self.incomplete_phis[block]);

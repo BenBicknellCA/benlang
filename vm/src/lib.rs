@@ -47,8 +47,7 @@ macro_rules! debug_printing {
         if $debug_cond {
             $to_print;
         }
-    }
-
+    };
 }
 
 pub struct CallFrame {
@@ -142,7 +141,10 @@ impl VM {
                     let lhs = self.opnd(*lhs);
                     let rhs = self.opnd(*rhs);
                     let res = Value::Literal(lhs.get_literal()? + rhs.get_literal()?);
-                    debug_printing!(println!("call_stack[{fp}][{dst:?}] =  {lhs:?} + {rhs:?}",), debug_cond);
+                    debug_printing!(
+                        println!("call_stack[{fp}][{dst:?}] =  {lhs:?} + {rhs:?}",),
+                        debug_cond
+                    );
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
 
@@ -158,9 +160,12 @@ impl VM {
                     let res = Value::Literal(val_lhs.get_literal()? - val_rhs.get_literal()?);
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
-                    debug_printing!(println!(
-                        "call_stack[{fp}][{dst}] = {lhs:?}: {val_lhs:?} - {rhs:?}: {val_rhs:?}",
-                    ),debug_cond);
+                    debug_printing!(
+                        println!(
+                            "call_stack[{fp}][{dst}] = {lhs:?}: {val_lhs:?} - {rhs:?}: {val_rhs:?}",
+                        ),
+                        debug_cond
+                    );
                     //                    println!("call_stack[{fp}][{dst:?}] = {lhs:?} - {rhs:?} : {:?}",
                     //                             self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize]
                     //                   );
@@ -172,7 +177,10 @@ impl VM {
                     let rhs = self.opnd(*rhs);
                     let res = Value::Literal(lhs.get_literal()? * rhs.get_literal()?);
 
-                    debug_printing!(println!("call_stack[{fp}][{dst:?}] = {lhs:?} * {rhs:?}"), debug_cond);
+                    debug_printing!(
+                        println!("call_stack[{fp}][{dst:?}] = {lhs:?} * {rhs:?}"),
+                        debug_cond
+                    );
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
 
@@ -184,7 +192,10 @@ impl VM {
                     let rhs = self.opnd(*rhs);
                     let res = Value::Literal(lhs.get_literal()? / rhs.get_literal()?);
 
-                    debug_printing!(println!("call_stack[{fp}][{dst:?}] = {lhs:?} / {rhs:?}",), debug_cond);
+                    debug_printing!(
+                        println!("call_stack[{fp}][{dst:?}] = {lhs:?} / {rhs:?}",),
+                        debug_cond
+                    );
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
 
@@ -197,10 +208,13 @@ impl VM {
                     let func_id = func.func;
                     let const_ = self.func_protos[func_id].const_pool[*const_id];
 
-                    debug_printing!(println!(
-                        "call_stack[frame_pointer][{dst:?}] =  {:?}",
-                        Value::Literal(const_)
-                    ), debug_cond);
+                    debug_printing!(
+                        println!(
+                            "call_stack[frame_pointer][{dst:?}] =  {:?}",
+                            Value::Literal(const_)
+                        ),
+                        debug_cond
+                    );
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] =
                         Value::Literal(const_);
@@ -210,7 +224,10 @@ impl VM {
                 OpCode::Move(dst, src) => {
                     debug_printing!(print!("{fp}: {ip}: Move: "), debug_cond);
                     let src = self.opnd(*src);
-                    debug_printing!(println!("call_stack[frame_pointer][{dst:?}] =  {src:?}"), debug_cond);
+                    debug_printing!(
+                        println!("call_stack[frame_pointer][{dst:?}] =  {src:?}"),
+                        debug_cond
+                    );
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src;
                     self.call_stack[self.frame_pointer].ip += 1;
@@ -241,7 +258,10 @@ impl VM {
                     debug_printing!(print!("{fp}: {ip}: Le: "), debug_cond);
                     let val_lhs = self.opnd(*lhs);
                     let val_rhs = self.opnd(*rhs);
-                    debug_printing!(println!("{lhs:?}: {val_lhs:?} <= {rhs:?}: {val_rhs:?}",), debug_cond);
+                    debug_printing!(
+                        println!("{lhs:?}: {val_lhs:?} <= {rhs:?}: {val_rhs:?}",),
+                        debug_cond
+                    );
                     if val_lhs <= val_rhs {
                         self.call_stack[self.frame_pointer].ip += 1;
                     }
@@ -273,11 +293,10 @@ impl VM {
                 OpCode::Copy(dst, src) => {
                     let src = self.opnd(*src);
 
-                    println!("DST: {dst:?} SRC: {src:?}");
 
-                    print!("{fp}: {ip}: Copy: ");
+                    debug_printing!(print!("{fp}: {ip}: Copy: "), debug_cond);
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src;
-                    println!("[{dst}] = {src:?}");
+                    debug_printing!(println!("[{dst}] = {src:?}"), debug_cond);
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
 
@@ -291,25 +310,21 @@ impl VM {
                     self.call_stack
                         .push(CallFrame::new(func, *ret_reg as usize, fp));
 
-                    debug_printing!(println!(
-                        "func in Reg[{func_id:?}], {arg_count} args, return to Reg[{ret_reg:?}]"
-                    ), debug_cond);
+                    debug_printing!(
+                        println!(
+                            "func in Reg[{func_id:?}], {arg_count} args, return to Reg[{ret_reg:?}]"
+                        ),
+                        debug_cond
+                    );
                     let func_reg = *func_id as usize;
                     for arg in 1..=(*arg_count as usize) {
-                        let arg_val =
-                            self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
-                        //                        println!("arg: {arg}");
-                        //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + ip - 1]);
                         self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg] =
                             self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
-                        //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + func_reg]);
-                        //                        println!("{:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
-                        //                        println!("res: {:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
                     }
 
                     self.call_stack[self.frame_pointer].ip += 1;
                     self.frame_pointer += 1;
-                    println!();
+                    debug_printing!(println!(), debug_cond);
                 }
                 OpCode::Jmp(jmp) => {
                     debug_printing!(println!("{fp}: {ip} Jmp: {ip} + {jmp:?}"), debug_cond);

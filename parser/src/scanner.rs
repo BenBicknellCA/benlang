@@ -288,7 +288,6 @@ impl Scanner<'_> {
             end = pos + 1;
         }
 
-
         let num_string: &str = &self.source[pos..end];
 
         // TODO: not ideal

@@ -101,10 +101,6 @@ impl Phis {
         self.0.insert(phi)
     }
 
-    fn new_phi(&mut self) -> PhiId {
-        self.0.insert(Phi)
-    }
-
     pub fn remove(&mut self, phi_id: PhiId) -> Option<Phi> {
         self.0.remove(phi_id)
     }
