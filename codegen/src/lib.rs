@@ -535,6 +535,9 @@ impl<'a> Compiler<'a> {
             HIR::Expr(expr_id) => {
                 return self.compile_expr(*expr_id);
             }
+            HIR::Var(assign) => {
+                todo!()
+            }
 
             HIR::Assign(assign) => {
                 todo!()

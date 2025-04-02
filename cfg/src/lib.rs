@@ -218,6 +218,7 @@ impl CFGBuilder {
             Stmt::Expr(expr) => self.expr_to_hir(*expr)?,
             Stmt::Return1(to_ret) => HIR::Return1(*to_ret),
             Stmt::Print(to_print) => HIR::Print(*to_print),
+            Stmt::Var(assign) => HIR::Var(*assign),
             _ => return Err(anyhow!("{stmt:?} cannot be made into HIR")),
         };
         Ok(hir)

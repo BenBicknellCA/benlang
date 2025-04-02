@@ -18,6 +18,7 @@ pub enum HIR {
     Return1(ExprId),
     Print(ExprId),
     Assign(Assign),
+    Var(Assign),
     Jmp(NodeIndex),
 }
 
