@@ -144,7 +144,7 @@ impl Sub for Literal {
         assert!(self.is_number() && other.is_number() || self.is_string() && other.is_string());
         if let Literal::Number(lhs) = self {
             let rhs = other.get_number().unwrap();
-            return Literal::Number(lhs + rhs);
+            return Literal::Number(lhs - rhs);
         }
         panic!("Cannot add {:?} and {:?} with `+` operator", self, other)
     }

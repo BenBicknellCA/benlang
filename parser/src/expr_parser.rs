@@ -104,7 +104,6 @@ impl Parser {
         let mut args = Vec::new();
         let mut arg_count = 0;
 
-
         if self.check(Token::RightParen).is_err() {
             args.push(self.expression()?);
             arg_count += 1;
@@ -114,13 +113,14 @@ impl Parser {
                 arg_count += 1;
             }
         }
-        let name = if let Some(Expr::Variable(iden)) = self.func_data.expr_pools[self.current_func()].get(token) {
+        let name = if let Some(Expr::Variable(iden)) =
+            self.func_data.expr_pools[self.current_func()].get(token)
+        {
             Some(iden.0)
         } else {
             None
         };
         self.consume(Token::RightParen)?;
-
 
         //        Ok(self.insert_expr_in_current_func(Call::new(name, args, arg_count).into()))
         self.insert_expr(Call::new(name, args, arg_count).into())

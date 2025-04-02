@@ -243,10 +243,8 @@ impl FuncData {
         expr_pools.insert(main, ExprPool::with_key());
         stmt_pools.insert(main, StmtPool::with_key());
         parent_to_children.insert(main, Vec::new());
-        let mut main_vars = Variables::default();
-        main_vars.parent = None;
         let mut variables = SecondaryMap::new();
-        variables.insert(main, main_vars);
+        variables.insert(main, Variables::new());
 
         Self {
             main,

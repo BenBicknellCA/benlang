@@ -23,6 +23,7 @@ use parser::{
 
 use petgraph::{Graph, graph::NodeIndex};
 use slotmap::SecondaryMap;
+use parser::value::{Literal, Value};
 
 pub type CFG = Graph<BasicBlock, Option<bool>>;
 
@@ -87,7 +88,6 @@ impl CFGBuilder {
 
     pub fn build_func_cfg(&mut self, func: FuncId) -> Result<()> {
         self.current_func = func;
-        println!("building: {func:?}");
         let mut cfg: Graph<BasicBlock, Option<bool>> = Graph::new();
 
         let current_node = cfg.add_node(BasicBlock::default());
@@ -104,7 +104,6 @@ impl CFGBuilder {
             .seal_block(current_node, &self.func_to_cfg[self.current_func])?;
 
         let body = std::mem::take(&mut self.func_pool[func].body.body);
-        println!("body: {:?}", &body);
 
         self.stmts(&body)?;
 
@@ -240,6 +239,7 @@ impl CFGBuilder {
             .get(cond.cond())
             .expect("cond id")
     }
+
 
     pub fn expr_to_hir(&self, expr_id: ExprId) -> Result<HIR> {
         let expr = &self.func_data.expr_pools[self.current_func][expr_id];
@@ -456,7 +456,6 @@ impl CFGBuilder {
             }
             Expr::Call(_) => {
                 // do nothing
-
             }
             Expr::Assign(assign) => {
                 CFGBuilder::get_all_vars_used_in_expr(expr_pool, assign.val, vec);

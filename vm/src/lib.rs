@@ -7,6 +7,7 @@ use codegen::OpCode;
 use codegen::{FuncProto, RegOrConst};
 use parser::object::FuncId;
 use parser::scanner::{Symbol, SymbolTable};
+use std::collections::HashMap;
 
 pub struct Upvalue {
     value: Value,
@@ -21,6 +22,7 @@ pub struct VM {
     main: FuncId,
     call_stack: Vec<CallFrame>,
     frame_pointer: usize,
+    globals: HashMap<Symbol, Value>,
 }
 
 struct RegisterStack([Value; 255]);
@@ -44,20 +46,20 @@ pub struct CallFrame {
     registers: RegisterStack,
     pub func: FuncId,
     pub return_address: usize,
+    pub return_frame: usize,
     top: usize,
-    base: usize,
     ip: usize,
 }
 
 impl CallFrame {
-    pub fn new(func: FuncId, return_address: usize, base: usize) -> Self {
+    pub fn new(func: FuncId, return_address: usize, return_frame: usize) -> Self {
         Self {
             func,
             return_address,
+            return_frame,
             registers: RegisterStack::default(),
             top: 1,
             ip: 0,
-            base,
         }
     }
 }
@@ -74,10 +76,11 @@ impl VM {
             main,
             call_stack: Vec::new(),
             frame_pointer: 0,
+            globals: HashMap::new(),
         }
     }
 
-    pub fn run_program(&mut self) {
+    pub fn run_program(&mut self) -> Result<()> {
         self.call_stack.push(CallFrame::new(self.main, 0, 0));
         for func in self.func_protos.values() {
             println!();
@@ -89,7 +92,8 @@ impl VM {
             println!();
             println!();
         }
-        self.eval();
+        self.eval()?;
+        Ok(())
     }
 
     //    fn call(&mut self, func: FuncId, return_address: usize) {
@@ -102,10 +106,11 @@ impl VM {
         let func_id = frame.func;
         let const_pool = &self.func_protos[func_id].const_pool;
         match reg_or_const {
-            RegOrConst::Reg(reg) => frame.registers.get()[reg as usize],
+            RegOrConst::Reg(reg) => frame.registers.get()[reg as usize].clone(),
             RegOrConst::Const(const_) => Value::Literal(const_pool[const_]),
         }
     }
+
 
     pub fn get_frame_pointer(&self) -> usize {
         self.frame_pointer
@@ -116,38 +121,6 @@ impl VM {
         self.call_stack.pop();
     }
 
-    pub fn map_args_to_func(&mut self, func_reg: u8, arg_count: usize) {
-        let fp = self.frame_pointer;
-        let val = self.call_stack[self.frame_pointer].registers.get_mut()[func_reg as usize];
-        let func_id = val.get_literal().unwrap().get_func().unwrap();
-
-        //        let to_call = &self.func_protos[func_id];
-        let frame = &self.call_stack[self.frame_pointer];
-        let dst_base = self.func_protos[func_id].arity;
-        let ip = frame.ip;
-
-        self.call_stack
-            .push(CallFrame::new(func_id, 0, dst_base as usize));
-        println!("{func_reg}");
-        for idx in 1..=arg_count {
-            let dst_idx = idx + func_reg as usize;
-            let src_idx = func_reg as usize + idx;
-
-            println!("idx: {idx} dst: {dst_base}, src: {src_idx} ip: {ip}");
-            println!(
-                "VAL_1: {:?}",
-                self.call_stack[self.frame_pointer].registers.get_mut()[src_idx]
-            );
-            println!(
-                "VAL_2: {:?}",
-                self.call_stack[self.frame_pointer + 1].registers.get_mut()[dst_idx]
-            );
-            self.call_stack[self.frame_pointer + 1].registers.get_mut()[dst_idx] =
-                self.call_stack[self.frame_pointer].registers.get_mut()[src_idx];
-            //            println!("VAL_2: {idx:?} {:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[idx]);
-        }
-        self.frame_pointer += 1;
-    }
 
     pub fn get_next_op(&self) {}
 
@@ -157,6 +130,7 @@ impl VM {
             let op = &instructions.bytecode[self.call_stack[self.frame_pointer].ip];
             let ip = self.call_stack[self.frame_pointer].ip;
             let fp = self.frame_pointer;
+
 
             match op {
                 OpCode::Add(dst, lhs, rhs) => {
@@ -173,13 +147,18 @@ impl VM {
                 }
                 OpCode::Sub(dst, lhs, rhs) => {
                     print!("{fp}: {ip}: Sub: ");
-                    let lhs = self.opnd(*lhs);
-                    let rhs = self.opnd(*rhs);
-                    let res = Value::Literal(lhs.get_literal()? - rhs.get_literal()?);
 
-                    println!("call_stack[{fp}][{dst:?}] = {lhs:?} - {rhs:?}",);
+                    //                    println!("{:?}", self.call_stack[self.frame_pointer].registers.get());
+
+                    let val_lhs = self.opnd(*lhs).clone();
+                    let val_rhs = self.opnd(*rhs).clone();
+                    let res = Value::Literal(val_lhs.get_literal()? - val_rhs.get_literal()?);
 
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
+                    println!("call_stack[{fp}][{dst}] = {lhs:?}: {val_lhs:?} - {rhs:?}: {val_rhs:?}", );
+                    //                    println!("call_stack[{fp}][{dst:?}] = {lhs:?} - {rhs:?} : {:?}",
+                    //                             self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize]
+                    //                   );
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
                 OpCode::Mul(dst, lhs, rhs) => {
@@ -211,7 +190,7 @@ impl VM {
                     print!("{fp}: {ip}: LoadConst: ");
                     let func = &self.call_stack[self.frame_pointer];
                     let func_id = func.func;
-                    let const_ = self.func_protos[func_id].const_pool[*const_id];
+                    let const_ = self.func_protos[func_id].const_pool[*const_id].clone();
 
                     println!(
                         "call_stack[frame_pointer][{dst:?}] =  {:?}",
@@ -285,13 +264,43 @@ impl VM {
                     }
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
-                OpCode::Call(func_reg, args, arg_count) => {
-                    print!("{fp}: {ip}: Call: ");
-                    //                    println!("{func:?}");
 
-                    self.map_args_to_func(*func_reg, *arg_count as usize);
+                OpCode::Copy(dst, src) => {
+                    let src = self.opnd(*src);
+
+                    println!("DST: {dst:?} SRC: {src:?}");
+
+                    print!("{fp}: {ip}: Copy: ");
+                    self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src.clone();
+                    println!("[{dst}] = {src:?}");
                     self.call_stack[self.frame_pointer].ip += 1;
-                    //                    println!("{func_reg:?}");
+                }
+
+
+                // 1 is func_reg, 2 is func_id, 3 is arg_count
+                OpCode::Call(func_id, ret_reg, arg_count) => {
+                    print!("{fp}: {ip}: Call: ");
+                    let func: FuncId = self.call_stack[self.frame_pointer].registers.get()[*func_id as usize].get_literal()?.get_func()?;
+                    self.call_stack.push(CallFrame::new(func, *ret_reg as usize, fp));
+
+
+                    println!("func in Reg[{func_id:?}], {arg_count} args, return to Reg[{ret_reg:?}]");
+                    let func_reg = *func_id as usize;
+                    for arg in 1..=(*arg_count as usize) {
+                        let arg_val = self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
+                        //                        println!("arg: {arg}");
+                        //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + ip - 1]);
+                        self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg] =
+                            self.call_stack[self.frame_pointer].registers.get()[arg + func_reg].clone();
+                        //                        println!("{:?}", self.call_stack[self.frame_pointer].registers.get_mut()[arg + func_reg]);
+                        //                        println!("{:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
+                        //                        println!("res: {:?}", self.call_stack[self.frame_pointer + 1].registers.get_mut()[arg]);
+                    }
+
+
+                    self.call_stack[self.frame_pointer].ip += 1;
+                    self.frame_pointer += 1;
+                    println!();
                 }
                 OpCode::Jmp(jmp) => {
                     println!("{fp}: {ip} Jmp: {ip} + {jmp:?}");
@@ -301,18 +310,58 @@ impl VM {
                 OpCode::Return1(ret_val) => {
                     print!("{fp}: {ip}: Return1: ");
 
-                    let ret_val = self.opnd(*ret_val);
-                    let return_to = self.call_stack[self.frame_pointer - 1].top;
+                    let ret_fp = self.call_stack[self.frame_pointer].return_frame;
+                    let ret_reg = self.call_stack[self.frame_pointer].return_address;
 
-                    self.call_stack[self.frame_pointer - 1].registers.get_mut()[return_to] =
+
+                    let ret_val = self.call_stack[self.frame_pointer].registers.get()[ret_val.get_reg()].clone();
+                    println!("{ret_val:?}");
+
+
+                    //                    println!("{ret_val:?} to {return_to:?}");
+
+                    self.call_stack[ret_fp].registers.get_mut()[ret_reg] =
                         ret_val;
 
-                    println!("{ret_val:?} to {return_to:?}");
+                    self.frame_pointer = ret_fp;
+                    self.call_stack.pop();
+
 
                     //                    self.call_stack[self.frame_pointer].registers.get_mut()[return_address] =
                     //                        ret_val;
-                    self.return_from_frame()
+                    //                    self.return_from_frame()
                     //                    self.call_stack[self.frame_pointer].registers
+                }
+                OpCode::GetGlobal(dst, src) => {
+                    print!("{fp}: {ip}: GetGlobal: ");
+
+
+                    let dst = dst.get_reg();
+                    let name = self.opnd(*src).get_literal()?.get_symbol()?;
+                    let val = self.globals[&name];
+
+
+                    self.call_stack[self.frame_pointer].registers.get_mut()[dst] = val;
+
+
+                    println!("dst: {dst:?} src: {src:?}");
+
+                    self.call_stack[self.frame_pointer].ip += 1;
+                }
+                OpCode::SetGlobal(dst, src) => {
+                    print!("{fp}: {ip}: SetGlobal: ");
+
+
+                    let name = self.opnd(*dst).get_literal()?.get_symbol()?;
+                    let val = self.opnd(*src);
+
+                    println!("{name:?} : {val:?} ");
+
+
+                    self.globals.insert(name, val);
+
+
+                    self.call_stack[self.frame_pointer].ip += 1;
                 }
                 _ => todo!("{op:?}"),
             }
