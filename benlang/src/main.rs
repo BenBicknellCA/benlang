@@ -1,57 +1,34 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::Generator;
+use codegen::Compiler;
 use parser::Parser;
 use parser::scanner::Scanner;
-
-// symbol_table: &SymbolTable,
-// cfg: CFG,
-// func_data: FuncData,
-// expr_pool: ExprPool,
-// ssa: SSABuilder,
-// func_pool: FuncPool,
-// func: &Function,
-
-// symbol_table: &SymbolTable,
-// cfg: CFG,
-// func_data: &FuncData,
-// ssa: SSABuilder,
-// func_pool: &FuncPool,
-// func_id: FuncId,
+use vm::VM;
 
 fn main() -> Result<()> {
     let mut cfg_builder = build_cfg();
+    for asd in cfg_builder.func_pool.values() {}
     cfg_builder.build_cfgs()?;
+    let main = cfg_builder.func_data.main;
+    let mut compiler = Compiler::new_from_id(&cfg_builder, cfg_builder.func_data.main);
 
-    let mut generator = Generator::new_from_id(&cfg_builder, cfg_builder.func_data.main);
+    compiler.compile_all_funcs(&cfg_builder)?;
 
-    generator.generate_all_func_protos(&cfg_builder);
-
-    //    generator.generate_all_func_protos();
-
-    //    for record in activation_records {
-    //        let record = record.func_proto;
-    //        println!("{record:?}");
-    //    }
+    let mut vm = VM::new(compiler.func_protos, cfg_builder.symbol_table, main);
+    vm.run_program()?;
 
     Ok(())
 }
 
 pub fn prep_parser_cfg() -> Parser {
     static SOURCE: &str = "
-            func test_func(first_param, second_param) {
-                    var test_var = 0;
-                    while (test_var < 100 ) {
-                        if (test_var > 100) {
-                            test_var = test_var + 10;
-                        } else {
-                            test_var = test_var + 9;
-                        }
-                    }
-                    test_var + 3000;
-                    var new_var = test_var + 1;
+            func fib(n) {
+                if (n <= 1) {
+                    return n;
+                }
+                return fib(n - 1) + fib(n - 2);
             }
-            test_func(1, 2);
+            fib(20);
             ";
     let mut scanner = Scanner::new(SOURCE);
     scanner.scan();
@@ -61,7 +38,6 @@ pub fn prep_parser_cfg() -> Parser {
 pub fn build_cfg() -> CFGBuilder {
     let mut parser = prep_parser_cfg();
     parser.build_ast().unwrap();
-    let ast = parser.ast;
     let main = parser.func_data.main;
     let func_data = parser.func_data;
     let func_pool = parser.func_pool;

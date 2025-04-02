@@ -1,22 +1,31 @@
 use crate::expr::BinaryOp;
 
+use crate::object::FuncId;
 use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
 use anyhow::{Result, anyhow};
 use std::mem::discriminant;
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
-#[derive(Debug, PartialEq, Clone, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
 pub enum Value {
     Object(Object),
     Literal(Literal),
 }
 
-#[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
+impl Default for Value {
+    fn default() -> Self {
+        Value::Literal(Literal::Nil)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, PartialOrd, Copy, Default)]
 pub enum Literal {
+    Function(FuncId),
     String(Symbol),
     Number(f64),
     Bool(bool),
+    #[default]
     Nil,
 }
 
@@ -30,6 +39,12 @@ impl Literal {
             return Ok(boolval);
         }
         Err(anyhow!("cannot get bool from {:?}", self))
+    }
+    pub fn get_func(self) -> Result<FuncId> {
+        if let Literal::Function(func) = self {
+            return Ok(func);
+        }
+        Err(anyhow!("cannot get function from {:?}", self))
     }
 
     pub fn is_string(&self) -> bool {
@@ -129,7 +144,7 @@ impl Sub for Literal {
         assert!(self.is_number() && other.is_number() || self.is_string() && other.is_string());
         if let Literal::Number(lhs) = self {
             let rhs = other.get_number().unwrap();
-            return Literal::Number(lhs + rhs);
+            return Literal::Number(lhs - rhs);
         }
         panic!("Cannot add {:?} and {:?} with `+` operator", self, other)
     }

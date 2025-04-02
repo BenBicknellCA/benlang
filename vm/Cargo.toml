@@ -1,5 +1,5 @@
 [package]
-name = "benlang"
+name = "vm"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,6 +7,5 @@ edition = "2024"
 parser = { path = "../parser" }
 cfg = { path = "../cfg" }
 codegen = { path = "../codegen" }
-vm = { path = "../vm" }
-petgraph = "0.7.1"
+slotmap = "1.0.7"
 anyhow = "1.0.97"

@@ -105,6 +105,13 @@ impl Expr {
         matches!(self, Expr::Variable(_))
     }
 
+    pub fn is_cmp(&self) -> bool {
+        if let Expr::Binary(bin) = self {
+            return bin.is_cmp();
+        };
+        false
+    }
+
     pub fn get_bool(&self) -> Result<bool> {
         if let Expr::Value(Value::Literal(Literal::Bool(boolval))) = self {
             return Ok(*boolval);
@@ -173,6 +180,19 @@ impl Binary {
     pub fn new(lhs: ExprId, op: BinaryOp, rhs: ExprId) -> Self {
         Self { lhs, op, rhs }
     }
+
+    pub fn is_cmp(&self) -> bool {
+        matches!(
+            self.op,
+            BinaryOp::GreaterThan
+                | BinaryOp::GreaterEqual
+                | BinaryOp::LessEqual
+                | BinaryOp::LessThan
+                | BinaryOp::Or
+                | BinaryOp::NotEqual
+                | BinaryOp::And
+        )
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, PartialOrd, Copy)]
@@ -212,12 +232,17 @@ pub struct Grouping(pub Symbol);
 
 #[derive(Debug, PartialEq, Clone, PartialOrd)]
 pub struct Call {
-    callee: Option<Symbol>,
-    args: Vec<ExprId>,
+    pub callee: Option<Symbol>,
+    pub args: Vec<ExprId>,
+    pub arg_count: usize,
 }
 
 impl Call {
-    pub fn new(callee: Option<Symbol>, args: Vec<ExprId>) -> Self {
-        Self { callee, args }
+    pub fn new(callee: Option<Symbol>, args: Vec<ExprId>, arg_count: usize) -> Self {
+        Self {
+            callee,
+            args,
+            arg_count,
+        }
     }
 }

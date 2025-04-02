@@ -1,7 +1,7 @@
 //do not remove
 use crate::Precedence;
 use crate::expr::Expr;
-use crate::expr::{BinaryOp, Unary, UnaryOp, Variable, Call};
+use crate::expr::{BinaryOp, Call, Unary, UnaryOp, Variable};
 use crate::scanner::Symbol;
 use crate::scanner::Token;
 use crate::value::{Literal, Value};
@@ -95,7 +95,7 @@ impl Parser {
             | Token::GreaterEqual
             | Token::Greater
             | Token::Less => self.binary(left),
-            | Token::LeftParen => self.call(left),
+            Token::LeftParen => self.call(left),
             _ => Err(ParseError::InvalidInfix { infix: token }.into()),
         }
     }
@@ -103,7 +103,6 @@ impl Parser {
     fn call(&mut self, token: ExprId) -> Result<ExprId> {
         let mut args = Vec::new();
         let mut arg_count = 0;
-
 
         if self.check(Token::RightParen).is_err() {
             args.push(self.expression()?);
@@ -114,16 +113,18 @@ impl Parser {
                 arg_count += 1;
             }
         }
-        let name = if let Some(Expr::Identifier(iden)) = self.func_data.expr_pools[self.current_func()].get(token) {
+        let name = if let Some(Expr::Variable(iden)) =
+            self.func_data.expr_pools[self.current_func()].get(token)
+        {
             Some(iden.0)
         } else {
             None
         };
         self.consume(Token::RightParen)?;
 
-        self.insert_expr(Call::new(name, args).into())
+        //        Ok(self.insert_expr_in_current_func(Call::new(name, args, arg_count).into()))
+        self.insert_expr(Call::new(name, args, arg_count).into())
     }
-
     fn binary(&mut self, pre_lhs: ExprId) -> Result<ExprId> {
         let op: Token = self.iter.prev;
 

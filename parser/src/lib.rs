@@ -8,8 +8,7 @@ pub mod value;
 
 use crate::expr::*;
 use crate::expr_parser::*;
-use crate::object::FuncId;
-use crate::object::Function;
+use crate::object::{FuncId, Function, Variables};
 use crate::scanner::Symbol;
 use crate::scanner::{SymbolTable, Token};
 use crate::stmt::*;
@@ -220,7 +219,7 @@ impl ParserIter {
         Ok(())
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FuncData {
     pub child_to_parent: SecondaryMap<FuncId, FuncId>,
     pub parent_to_children: SecondaryMap<FuncId, Vec<FuncId>>,
@@ -228,11 +227,13 @@ pub struct FuncData {
     pub current: FuncId,
     pub stmt_pools: SecondaryMap<FuncId, StmtPool>,
     pub expr_pools: SecondaryMap<FuncId, ExprPool>,
+    pub variables: SecondaryMap<FuncId, Variables>,
 }
 
 impl FuncData {
     pub fn new_main(func_pool: &mut FuncPool) -> Self {
         let main = func_pool.insert(Function::default());
+        func_pool[main].func_id = main;
         let current = main;
         let mut parent_to_children = SecondaryMap::new();
 
@@ -242,6 +243,9 @@ impl FuncData {
         expr_pools.insert(main, ExprPool::with_key());
         stmt_pools.insert(main, StmtPool::with_key());
         parent_to_children.insert(main, Vec::new());
+        let mut variables = SecondaryMap::new();
+        variables.insert(main, Variables::new());
+
         Self {
             main,
             current,
@@ -249,6 +253,7 @@ impl FuncData {
             parent_to_children,
             expr_pools,
             stmt_pools,
+            variables,
         }
     }
 }
@@ -301,6 +306,7 @@ impl Parser {
     pub fn enter_func(&mut self, parent: FuncId) -> FuncId {
         let placeholder_child = self.func_pool.insert(Function::default());
         self.func_data.current = placeholder_child;
+        self.func_pool[placeholder_child].func_id = placeholder_child;
 
         self.func_data
             .stmt_pools
@@ -313,6 +319,7 @@ impl Parser {
         self.func_data
             .child_to_parent
             .insert(placeholder_child, parent);
+
         if let Some(children) = self.func_data.parent_to_children.get_mut(parent) {
             children.push(placeholder_child);
         } else {
@@ -386,12 +393,20 @@ impl Parser {
         Err(anyhow!("could not get bin {:?}", expr_key))
     }
 
-    pub fn build_ast(&mut self) -> Result<&[StmtId]> {
+    pub fn build_ast(&mut self) -> Result<()> {
         while !self.is_at_end() {
             let key = self.declaration()?;
-            self.ast.push(key);
+            self.func_pool[self.func_data.current].body.body.push(key);
+            //            for (id, val) in &self.func_data.stmt_pools[self.func_data.main] {
+            //                println!("id: {:?} val: {:?}", id, val);
+            //                if let Some(Stmt::Expr(expr)) = self.func_data.stmt_pools[self.func_data.main].get(id) {
+            //                    println!("expr: {:?}", &self.func_data.expr_pools[self.func_data.main][*expr]);
+            //                }
+            //            }
+            //            //            self.ast.push(key);
         }
-        Ok(&self.ast)
+        //        //       Ok(&self.ast)
+        Ok(())
     }
 }
 

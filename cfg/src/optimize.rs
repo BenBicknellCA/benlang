@@ -53,29 +53,14 @@ impl CFGBuilder {
         node: NodeIndex,
         hir: &mut HIR,
     ) -> Result<()> {
-        match hir {
-            HIR::Expr(expr) => {
-                CFGBuilder::propagate_copy_id(expr_pool, ssa, cfg, node, *expr)?;
-            }
-            HIR::Var(assign) => {
-                CFGBuilder::replace_assign_val(ssa, cfg, node, assign)?;
-            }
-            _ => {}
+        if let HIR::Expr(expr) = hir {
+            CFGBuilder::propagate_copy_id(expr_pool, ssa, cfg, node, *expr)?;
         };
-
-        //        if let Some(Expr::Assign(assign)) = self.func_data.expr_pools[self.current_func].get_mut(assign_id) {
-        //            if let Ok(phi_or_expr) = self.ssa.read_variable(assign.name, node, &self.cfg) {
-        //                if !phi_or_expr.is_a_phi() {
-        //                    let new_expr = phi_or_expr.get_expr()?;
-        //                    assign.val = new_expr;
-        //                }
-        //            }
-        //        }
 
         Ok(())
     }
 
-    pub fn fold_constant<'a>(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
+    pub fn fold_constant(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
         match expr_pool[expr_id] {
             Expr::Binary(_) => CFGBuilder::fold_binary(expr_pool, expr_id),
             Expr::Unary(_) => CFGBuilder::fold_unary(expr_pool, expr_id),
