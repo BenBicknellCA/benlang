@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use cfg::basic_block::BasicBlock;
 use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
-use cfg::{CFG, CFGBuilder};
+use cfg::{CFGBuilder, CFG};
 use parser::expr::{Assign, Binary, BinaryOp, Call, Expr, Unary, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::object::{Binding, FuncId, Function, Nonlocal, Scope, Variables};
@@ -77,6 +77,7 @@ pub enum OpCode {
     CloseUpvalue(RegIdx),
     Call(RegIdx, u8, u8),
     Copy(RegIdx, RegOrConst),
+    Print(RegOrConst),
     //    Div(RegIdx, RegIdx, RegIdx),
     //    Mod(RegIdx, RegIdx, RegIdx),
     //    Pow(RegIdx, RegIdx, RegIdx),
@@ -357,7 +358,8 @@ impl<'a> Compiler<'a> {
             BinaryOp::Star => OpCode::Mul(dst, lhs_reg, rhs_reg),
             BinaryOp::Minus => OpCode::Sub(dst, lhs_reg, rhs_reg),
             BinaryOp::Slash => OpCode::Div(dst, lhs_reg, rhs_reg),
-            _ => unreachable!(),
+            BinaryOp::Mod => OpCode::Mod(dst, lhs_reg, rhs_reg),
+            _ => unreachable!("{:?}", op),
         };
         self.func_protos[self.func_id].insert_op(opcode);
         Ok(RegOrConst::Reg(dst))
@@ -382,8 +384,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn resolve_var(&mut self, name: &Symbol) -> Result<RegIdx> {
-        let reg: RegIdx = match self.lookup_binding(*name)? {
+    pub fn resolve_var(&mut self, name: Symbol) -> Result<RegIdx> {
+        let reg: RegIdx = match self.lookup_binding(name)? {
             Some(Binding::Local(register)) => register,
 
             Some(Binding::Upvalue(upvalue_id)) => {
@@ -395,7 +397,7 @@ impl<'a> Compiler<'a> {
 
             None => {
                 // Otherwise do a late-binding global lookup
-                let name = self.resolve_value(&Value::Literal(Literal::String(*name)))?;
+                let name = self.resolve_value(&Value::Literal(Literal::String(name)))?;
 
                 //                let name = self.emit_load_const(&Value::Literal(Literal::String(*name)))?;
                 let dest = self.acquire_reg();
@@ -434,7 +436,7 @@ impl<'a> Compiler<'a> {
 
         let arg_list = &call.args;
         let func_to_call = call.callee.unwrap();
-        let function = self.resolve_var(&func_to_call)?;
+        let function = self.resolve_var(func_to_call)?;
         //
         for arg in arg_list {
             let src = self.compile_expr(*arg)?;
@@ -474,8 +476,8 @@ impl<'a> Compiler<'a> {
         todo!("nested func")
     }
 
-    pub fn emit_assign_bytecode(&mut self, _: &Assign) -> Result<RegOrConst> {
-        todo!()
+    pub fn emit_assign_bytecode(&mut self, var: &Assign) -> Result<RegOrConst> {
+        self.compile_var_assign(var)
     }
 
     pub fn compile_expr(&mut self, expr: ExprId) -> Result<RegOrConst> {
@@ -488,7 +490,7 @@ impl<'a> Compiler<'a> {
             Expr::Stmt(stmt) => {
                 todo!()
             }
-            Expr::Variable(var) => Ok(RegOrConst::Reg(self.resolve_var(&var.0)?)),
+            Expr::Variable(var) => Ok(RegOrConst::Reg(self.resolve_var(var.0)?)),
             Expr::Value(val) => {
                 if let Value::Literal(Literal::Function(func)) = val {
                     return self.define_func(*func);
@@ -505,6 +507,15 @@ impl<'a> Compiler<'a> {
         self.func_protos[self.func_id].acquire_reg()
     }
 
+    pub fn compile_var_assign(&mut self, var: &Assign) -> Result<RegOrConst> {
+        let reg = self.resolve_var(var.name)?;
+        let val = self.compile_expr(var.val)?;
+        if val.get_reg() != reg as usize {
+            self.func_protos[self.func_id].insert_op(OpCode::Copy(reg, val));
+        };
+        Ok(reg.into())
+    }
+
     pub fn emit_bytecode(
         &mut self,
         hir: &HIR,
@@ -514,13 +525,11 @@ impl<'a> Compiler<'a> {
             HIR::Expr(expr_id) => {
                 return self.compile_expr(*expr_id);
             }
-            HIR::Var(_) => {
-                todo!()
+            HIR::Var(var) => {
+                return self.compile_var_assign(var);
+                //                self.
             }
 
-            HIR::Assign(_) => {
-                todo!()
-            }
             HIR::Return0 => {
                 self.func_protos[self.func_id].insert_op(OpCode::Return0);
             }
@@ -529,7 +538,8 @@ impl<'a> Compiler<'a> {
                 self.func_protos[self.func_id].insert_op(OpCode::Return1(arg));
             }
             HIR::Print(expr) => {
-                OpCode::PrintExpr(*expr);
+                let arg = self.compile_expr(*expr)?;
+                self.func_protos[self.func_id].insert_op(OpCode::Print(arg));
             }
             HIR::Jmp(jmp_node) => {
                 jmps.insert(self.func_protos[self.func_id].op_count, *jmp_node);
@@ -555,15 +565,7 @@ impl<'a> Compiler<'a> {
 
     fn new_proto(&mut self, val: &Function) -> FuncId {
         let mut count = 1;
-        let mut scopes = Scope::new();
-        let mut variables = Variables::new();
-        count += scopes.push_bindings(&val.params, count).unwrap();
-
-        //        if let Some(name) = val.name {
-        //            scopes.push_binding(name, count).unwrap();
-        //            count += 1;
-        //        }
-        variables.scopes.push(scopes);
+        let variables = Variables::new();
         let proto = FuncProto {
             variables,
             bytecode: Vec::new(),
@@ -632,7 +634,7 @@ impl FuncProto {
 mod codegen_tests {
 
     pub fn binary() {
-        let SOURCE: &'static str = "func test_func() {
+        const SOURCE: &str = "func test_func() {
             var test_var = 0;
             while (true && true) {
                 if (false) {

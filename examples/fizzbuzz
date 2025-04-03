@@ -1,0 +1,14 @@
+func fizz_buzz(n) {
+    var counter = n;
+    while (counter <= 100) {
+            print(counter);
+        if (counter % 3 == 0) {
+            print("fizz");
+        }
+        if (counter % 5 == 0) {
+            print("buzz");
+        }
+        counter = counter + 1;
+    }
+}
+fizz_buzz(0);

@@ -31,6 +31,7 @@ pub enum BinaryOp {
     LessEqual,
     Or,
     And,
+    Mod,
 }
 
 impl TryFrom<Token> for UnaryOp {
@@ -61,6 +62,7 @@ impl TryFrom<Token> for BinaryOp {
             Token::Less => BinaryOp::LessThan,
             Token::And => BinaryOp::And,
             Token::Or => BinaryOp::Or,
+            Token::Mod => BinaryOp::Mod,
 
             _ => return Err(ParseError::InvalidOp { op: token }.into()),
         };
@@ -190,6 +192,7 @@ impl Binary {
                 | BinaryOp::LessThan
                 | BinaryOp::Or
                 | BinaryOp::NotEqual
+                | BinaryOp::Equal
                 | BinaryOp::And
         )
     }

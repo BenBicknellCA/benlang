@@ -128,6 +128,22 @@ impl VM {
 
     pub fn get_next_op(&self) {}
 
+    pub fn print_val(&self, val: RegOrConst) {
+        let val = self.opnd(val);
+        match val {
+            Value::Literal(lit) => match lit {
+                Literal::String(sym) => {
+                    println!("{}", self.string_interner.resolve(sym).unwrap());
+                }
+                Literal::Number(num) => {
+                    println!("{num}");
+                }
+                _ => todo!("{val:?}"),
+            },
+            Value::Object(_) => todo!(),
+        }
+    }
+
     fn eval(&mut self, debug_cond: bool) -> Result<()> {
         loop {
             let instructions = &self.func_protos[self.call_stack[self.frame_pointer].func];
@@ -186,6 +202,25 @@ impl VM {
 
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
+
+                OpCode::Mod(dst, lhs, rhs) => {
+                    debug_printing!(print!("{fp}: {ip}: Mod: "), debug_cond);
+                    let lhs = self.opnd(*lhs);
+                    let rhs = self.opnd(*rhs);
+                    let res = Value::Literal(Literal::Number(
+                        lhs.get_literal()?.get_number()? % rhs.get_literal()?.get_number()?,
+                    ));
+
+                    debug_printing!(
+                        println!("call_stack[{fp}][{dst:?}] = {lhs:?} % {rhs:?}"),
+                        debug_cond
+                    );
+
+                    self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = res;
+
+                    self.call_stack[self.frame_pointer].ip += 1;
+                }
+
                 OpCode::Div(dst, lhs, rhs) => {
                     debug_printing!(print!("{fp}: {ip}: Div: "), debug_cond);
                     let lhs = self.opnd(*lhs);
@@ -268,11 +303,11 @@ impl VM {
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
                 OpCode::Eq(lhs, rhs) => {
-                    print!("{fp}: {ip}: Eq: ");
+                    debug_printing!(print!("{fp}: {ip}: Eq: "), debug_cond);
                     let lhs = self.opnd(*lhs);
                     let rhs = self.opnd(*rhs);
 
-                    println!("{lhs:?} == {rhs:?}",);
+                    debug_printing!(println!("{lhs:?} == {rhs:?}",), debug_cond);
                     if lhs == rhs {
                         self.call_stack[self.frame_pointer].ip += 1;
                     }
@@ -291,9 +326,9 @@ impl VM {
                 }
 
                 OpCode::Copy(dst, src) => {
+                    debug_printing!(print!("{fp}: {ip}: Copy: "), debug_cond);
                     let src = self.opnd(*src);
 
-                    debug_printing!(print!("{fp}: {ip}: Copy: "), debug_cond);
                     self.call_stack[self.frame_pointer].registers.get_mut()[*dst as usize] = src;
                     debug_printing!(println!("[{dst}] = {src:?}"), debug_cond);
                     self.call_stack[self.frame_pointer].ip += 1;
@@ -374,6 +409,13 @@ impl VM {
                     debug_printing!(println!("{name:?} : {val:?} "), debug_cond);
 
                     self.globals.insert(name, val);
+
+                    self.call_stack[self.frame_pointer].ip += 1;
+                }
+                OpCode::Print(src) => {
+                    debug_printing!(print!("{fp}: {ip}: Print: "), debug_cond);
+
+                    self.print_val(*src);
 
                     self.call_stack[self.frame_pointer].ip += 1;
                 }

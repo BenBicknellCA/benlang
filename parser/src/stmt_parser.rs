@@ -142,8 +142,10 @@ impl Parser {
     }
 
     fn print_stmt(&mut self) -> Result<StmtId> {
+        self.consume(Token::Print)?;
         let to_print = self.expression()?;
-        self.insert_stmt(Stmt::Print(to_print))
+        self.consume(Token::Semicolon)?;
+        Ok(self.insert_stmt_in_current_func(Stmt::Print(to_print)))
     }
 
     fn statement(&mut self) -> Result<StmtId> {

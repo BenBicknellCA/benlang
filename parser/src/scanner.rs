@@ -1,5 +1,5 @@
 pub type Symbol = string_interner::DefaultSymbol;
-pub type SymbolTable = string_interner::StringInterner<string_interner::backend::StringBackend>;
+pub type SymbolTable = string_interner::StringInterner<string_interner::backend::BucketBackend>;
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -59,6 +59,7 @@ pub enum Token {
     BitAnd,
     BitOr,
     Float(f32),
+    Mod,
 }
 
 impl Token {
@@ -180,6 +181,7 @@ impl From<Token> for usize {
             Token::BitAnd => 48,
             Token::BitOr => 49,
             Token::Float(_) => 50,
+            Token::Mod => 50,
         }
     }
 }
@@ -250,6 +252,7 @@ impl Scanner<'_> {
                 Some(_equals) => Token::Or,
                 None => Token::BitOr,
             },
+            '%' => Token::Mod,
 
             '"' => {
                 let mut end = 0;
@@ -267,7 +270,7 @@ impl Scanner<'_> {
             }
 
             //TODO placeholder
-            _ => Token::Invalid,
+            _ => todo!("{pass_token}"),
         };
         match token {
             Token::Discard => {}
@@ -297,7 +300,6 @@ impl Scanner<'_> {
         } else {
             Token::Float(num_string.parse::<f32>().expect("Invalid number format"))
         }
-
     }
 
     pub fn scan_func_decl() -> Token {

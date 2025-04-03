@@ -7,8 +7,12 @@ pub mod ssa;
 
 use crate::basic_block::{BasicBlock, TermKind};
 use crate::ir::HIR;
-use parser::FuncPool;
 use parser::object::FuncId;
+use parser::{
+    FuncPool,
+    value::{Literal, Value},
+};
+use ssa::PhiOrExpr;
 
 use crate::ssa::SSABuilder;
 use anyhow::{Result, anyhow};
@@ -90,6 +94,9 @@ impl CFGBuilder {
         let mut cfg: Graph<BasicBlock, Option<bool>> = Graph::new();
 
         let current_node = cfg.add_node(BasicBlock::default());
+
+        let nil = self.func_data.expr_pools[func].insert(Value::Literal(Literal::Nil).into());
+
         cfg[current_node].node_index = current_node;
         self.current_node = current_node;
 
@@ -98,6 +105,10 @@ impl CFGBuilder {
 
         self.func_to_cfg.insert(func, cfg);
         self.func_to_ssa.insert(func, ssa);
+
+        for param in &self.func_pool[func].params {
+            self.func_to_ssa[func].write_variable(*param, current_node, PhiOrExpr::Expr(nil))?;
+        }
 
         self.func_to_ssa[self.current_func]
             .seal_block(current_node, &self.func_to_cfg[self.current_func])?;
@@ -205,7 +216,6 @@ impl CFGBuilder {
     pub fn expr_to_hir(&self, expr_id: ExprId) -> Result<HIR> {
         let expr = &self.func_data.expr_pools[self.current_func][expr_id];
         let hir = match &expr {
-            Expr::Assign(assign) => HIR::Assign(*assign),
             _ => HIR::Expr(expr_id),
         };
         Ok(hir)
@@ -519,7 +529,6 @@ mod cfg_tests {
     use super::*;
     use parser::Parser;
     use parser::scanner::Scanner;
-    use petgraph::dot::{Config, Dot};
     // test_var * 2
 
     fn prep_parser_cfg() -> Parser {

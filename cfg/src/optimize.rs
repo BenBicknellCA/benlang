@@ -60,9 +60,26 @@ impl CFGBuilder {
         Ok(())
     }
 
+    pub fn any_mods(expr_pool: &ExprPool, expr_id: ExprId) -> bool {
+        if let Some(Expr::Binary(bin)) = expr_pool.get(expr_id) {
+            if bin.op == BinaryOp::Mod
+                || CFGBuilder::any_mods(expr_pool, bin.lhs)
+                || CFGBuilder::any_mods(expr_pool, bin.rhs)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn fold_constant(expr_pool: &mut ExprPool, expr_id: ExprId) -> Result<()> {
         match expr_pool[expr_id] {
-            Expr::Binary(_) => CFGBuilder::fold_binary(expr_pool, expr_id),
+            Expr::Binary(_) => {
+                if CFGBuilder::any_mods(expr_pool, expr_id) {
+                    return Ok(());
+                }
+                CFGBuilder::fold_binary(expr_pool, expr_id)
+            }
             Expr::Unary(_) => CFGBuilder::fold_unary(expr_pool, expr_id),
             Expr::Value(_) => Ok(()),
             Expr::Variable(_) => Ok(()),

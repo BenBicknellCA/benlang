@@ -17,7 +17,6 @@ pub enum HIR {
     Return0,
     Return1(ExprId),
     Print(ExprId),
-    Assign(Assign),
     Var(Assign),
     Jmp(NodeIndex),
 }
@@ -52,7 +51,6 @@ impl HIR {
         let id = match self {
             HIR::Return1(expr) => expr,
             HIR::Print(expr) => expr,
-            HIR::Assign(assign) => &assign.val,
             _ => return Err(anyhow!("cannot get expr from {:?}", self)),
         };
         Ok(*id)

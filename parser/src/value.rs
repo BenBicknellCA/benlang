@@ -84,11 +84,14 @@ impl Literal {
         }
         Err(anyhow!("Cannot get number from: {:?}", self))
     }
-    pub fn is_number(&self) -> bool {
-        if let Literal::Number(_) = self {
-            return true;
+    pub fn get_float(&self) -> Result<f32> {
+        if let Literal::Float(flt) = self {
+            return Ok(*flt);
         }
-        false
+        Err(anyhow!("Cannot get float from: {:?}", self))
+    }
+    pub fn is_number(&self) -> bool {
+        matches!(self, Literal::Number(_) | Literal::Float(_))
     }
 
     pub fn fold_and_or(&self, op: BinaryOp, rhs: &Literal) -> Result<bool> {

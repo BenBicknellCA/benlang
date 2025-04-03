@@ -87,6 +87,7 @@ impl From<Token> for Precedence {
             Token::Minus => Precedence::Term,
             Token::Slash => Precedence::Factor,
             Token::Star => Precedence::Factor,
+            Token::Mod => Precedence::Factor,
             Token::BangEqual => Precedence::Equality,
             Token::Greater => Precedence::Comparison,
             Token::GreaterEqual => Precedence::Comparison,
@@ -103,6 +104,7 @@ impl From<Token> for Precedence {
             Token::LeftParen => Precedence::Call,
             Token::Dot => Precedence::Call,
             Token::Or => Precedence::Or,
+            Token::Equal => Precedence::None,
             _ => Precedence::None,
         }
     }
@@ -397,17 +399,24 @@ impl Parser {
         while !self.is_at_end() {
             let key = self.declaration()?;
             self.func_pool[self.func_data.current].body.body.push(key);
-            //            for (id, val) in &self.func_data.stmt_pools[self.func_data.main] {
-            //                println!("id: {:?} val: {:?}", id, val);
-            //                if let Some(Stmt::Expr(expr)) = self.func_data.stmt_pools[self.func_data.main].get(id) {
-            //                    println!("expr: {:?}", &self.func_data.expr_pools[self.func_data.main][*expr]);
+            //            for (func_id, val) in &self.func_data.stmt_pools {
+            //                if self.func_data.main != func_id {
+            //                    for val in val.values() {
+            //                        println!("val: {val:?}");
+            //
+            //                        //                     println!("id: {:?} val: {:?}", self.func_data.stmt_pools[func_id][id], val);
+            //                        //                     if let Some(Stmt::Expr(expr)) = self.func_data.stmt_pools[self.func_data.main].get(id) {
+            //                        if let Stmt::Expr(expr) = val {
+            //                            println!("expr: {:?}", &self.func_data.expr_pools[func_id][*expr]);
+            //                        }
+            //                    }
             //                }
+            //                //            self.ast.push(key);
             //            }
-            //            //            self.ast.push(key);
         }
-        //        //       Ok(&self.ast)
         Ok(())
     }
+    //        //       Ok(&self.ast)
 }
 
 #[cfg(test)]
