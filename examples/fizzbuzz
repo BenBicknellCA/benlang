@@ -3,10 +3,10 @@ func fizz_buzz(n) {
     while (counter <= 100) {
             print(counter);
         if (counter % 3 == 0) {
-            print(\"fizz\");
+            print("fizz");
         }
         if (counter % 5 == 0) {
-            print(\"buzz\");
+            print("buzz");
         }
         counter = counter + 1;
     }

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
 use codegen::Compiler;
-use parser::Parser;
 use parser::scanner::Scanner;
+use parser::Parser;
 use vm::VM;
 
 fn main() -> Result<()> {
@@ -24,7 +24,7 @@ pub fn run_program() -> Result<()> {
 }
 
 pub fn prep_parser_cfg() -> Result<Parser> {
-    let contents = include_str!("../../examples/fib");
+    let contents = include_str!("../../examples/fizzbuzz");
 
     let mut scanner = Scanner::new(contents);
     scanner.scan();

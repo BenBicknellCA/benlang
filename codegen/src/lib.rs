@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use cfg::basic_block::BasicBlock;
 use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
-use cfg::{CFG, CFGBuilder};
+use cfg::{CFGBuilder, CFG};
 use parser::expr::{Assign, Binary, BinaryOp, Call, Expr, Unary, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::object::{Binding, FuncId, Function, Nonlocal, Scope, Variables};
@@ -565,15 +565,7 @@ impl<'a> Compiler<'a> {
 
     fn new_proto(&mut self, val: &Function) -> FuncId {
         let mut count = 1;
-        //        let mut scopes = Scope::new();
-        let mut variables = Variables::new();
-        //        count += scopes.push_bindings(&val.params, count).unwrap();
-        //
-        //        //        if let Some(name) = val.name {
-        //        //            scopes.push_binding(name, count).unwrap();
-        //        //            count += 1;
-        //        //        }
-        //        variables.scopes.push(scopes);
+        let variables = Variables::new();
         let proto = FuncProto {
             variables,
             bytecode: Vec::new(),
