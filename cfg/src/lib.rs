@@ -107,6 +107,7 @@ impl CFGBuilder {
         self.func_to_ssa.insert(func, ssa);
 
         for param in &self.func_pool[func].params {
+            self.func_to_ssa[func].unique_vars.insert(*param);
             self.func_to_ssa[func].write_variable(*param, current_node, PhiOrExpr::Expr(nil))?;
         }
 

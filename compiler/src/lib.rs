@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use std::collections::HashSet;
 use cfg::basic_block::BasicBlock;
 use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
@@ -251,12 +252,10 @@ impl<'a> Compiler<'a> {
 
         let mut dfs = Dfs::new(graph, root);
 
-        let all_vars: Vec<Symbol> = self
+        let all_vars: Vec<&Symbol> = self
             .ssa
-            .var_defs
-            .0
+            .unique_vars
             .iter()
-            .flat_map(|pair| pair.1.keys().copied())
             .collect();
         let mut func_scope = Scope::new();
 
