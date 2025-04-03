@@ -1,5 +1,5 @@
 pub type Symbol = string_interner::DefaultSymbol;
-pub type SymbolTable = string_interner::StringInterner<string_interner::backend::StringBackend>;
+pub type SymbolTable = string_interner::StringInterner<string_interner::backend::BucketBackend>;
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -300,7 +300,6 @@ impl Scanner<'_> {
         } else {
             Token::Float(num_string.parse::<f32>().expect("Invalid number format"))
         }
-
     }
 
     pub fn scan_func_decl() -> Token {

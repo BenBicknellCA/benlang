@@ -3,7 +3,7 @@ use crate::expr::BinaryOp;
 use crate::object::FuncId;
 use crate::object::Object;
 use crate::scanner::{Symbol, SymbolTable};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::mem::discriminant;
 use std::ops::{Add, Div, Mul, Neg, Not, Sub};
 
@@ -84,6 +84,12 @@ impl Literal {
         }
         Err(anyhow!("Cannot get number from: {:?}", self))
     }
+    pub fn get_float(&self) -> Result<f32> {
+        if let Literal::Float(flt) = self {
+            return Ok(*flt);
+        }
+        Err(anyhow!("Cannot get float from: {:?}", self))
+    }
     pub fn is_number(&self) -> bool {
         matches!(self, Literal::Number(_) | Literal::Float(_))
     }
@@ -111,7 +117,6 @@ impl Mul for Literal {
         panic!("Cannot mul {:?} * {:?}", self, other)
     }
 }
-
 
 impl Div for Literal {
     type Output = Literal;

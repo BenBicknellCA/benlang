@@ -1,12 +1,12 @@
-use crate::ssa::PhiOrExpr;
-use crate::ssa::SSABuilder;
+use crate::CFG;
 use crate::CFGBuilder;
 use crate::Expr;
 use crate::ExprPool;
-use crate::NodeIndex;
-use crate::CFG;
 use crate::HIR;
-use anyhow::{anyhow, Result};
+use crate::NodeIndex;
+use crate::ssa::PhiOrExpr;
+use crate::ssa::SSABuilder;
+use anyhow::{Result, anyhow};
 use parser::expr::{Assign, Binary, BinaryOp, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::value::{Literal, Value};
@@ -62,7 +62,10 @@ impl CFGBuilder {
 
     pub fn any_mods(expr_pool: &ExprPool, expr_id: ExprId) -> bool {
         if let Some(Expr::Binary(bin)) = expr_pool.get(expr_id) {
-            if bin.op == BinaryOp::Mod || CFGBuilder::any_mods(expr_pool, bin.lhs) || CFGBuilder::any_mods(expr_pool, bin.rhs) {
+            if bin.op == BinaryOp::Mod
+                || CFGBuilder::any_mods(expr_pool, bin.lhs)
+                || CFGBuilder::any_mods(expr_pool, bin.rhs)
+            {
                 return true;
             }
         }
@@ -73,10 +76,10 @@ impl CFGBuilder {
         match expr_pool[expr_id] {
             Expr::Binary(_) => {
                 if CFGBuilder::any_mods(expr_pool, expr_id) {
-                    return Ok(())
+                    return Ok(());
                 }
                 CFGBuilder::fold_binary(expr_pool, expr_id)
-            },
+            }
             Expr::Unary(_) => CFGBuilder::fold_unary(expr_pool, expr_id),
             Expr::Value(_) => Ok(()),
             Expr::Variable(_) => Ok(()),
@@ -96,7 +99,6 @@ impl CFGBuilder {
 
     pub fn fold_binary(expr_pool: &mut ExprPool, binary_id: ExprId) -> Result<()> {
         let binary = expr_pool.get(binary_id).unwrap().get_binary()?;
-
 
         // do not fold to preserve conditionals
         if expr_pool[binary.lhs].is_bool() && expr_pool[binary.rhs].is_bool() {
@@ -132,10 +134,8 @@ impl CFGBuilder {
             return Ok(());
         }
 
-
         let lhs = lhs_expr.get_value()?.get_literal()?;
         let rhs = rhs_expr.get_value()?.get_literal()?;
-
 
         let folded = match binary.op {
             BinaryOp::Plus => lhs + rhs,

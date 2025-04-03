@@ -1,11 +1,11 @@
-use crate::expr_parser::ExprId;
 use crate::ParseError;
 use crate::Stmt;
+use crate::expr_parser::ExprId;
 
 use crate::scanner::{Symbol, Token};
 use crate::value::{Literal, Value};
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 use enum_dispatch::enum_dispatch;
 
 #[derive(Debug, PartialEq, Clone, PartialOrd, Hash, Eq, Copy)]
@@ -192,6 +192,7 @@ impl Binary {
                 | BinaryOp::LessThan
                 | BinaryOp::Or
                 | BinaryOp::NotEqual
+                | BinaryOp::Equal
                 | BinaryOp::And
         )
     }
