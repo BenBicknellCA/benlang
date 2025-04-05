@@ -77,7 +77,7 @@ impl CFGBuilder {
             .func_data
             .parent_to_children
             .remove(self.func_data.main)
-            .unwrap();
+            .expect("main key");
         self.build_func_cfg(self.func_data.main)?;
         for func in funcs {
             self.build_func_cfg(func)?;

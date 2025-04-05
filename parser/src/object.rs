@@ -1,9 +1,9 @@
 use crate::scanner::Symbol;
-use std::collections::HashSet;
 use crate::stmt::Block;
 use slotmap::new_key_type;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::collections::HashSet;
 new_key_type! {pub struct FuncId; pub struct ObjId;}
 
 pub type UpvalueId = u8;
@@ -65,7 +65,11 @@ impl Scope {
         Ok(())
     }
 
-    pub fn push_bindings(&mut self, names: &[&Symbol], start_reg: RegIdx) -> anyhow::Result<RegIdx> {
+    pub fn push_bindings(
+        &mut self,
+        names: &[&Symbol],
+        start_reg: RegIdx,
+    ) -> anyhow::Result<RegIdx> {
         let mut reg = start_reg;
         for name in names {
             self.push_binding(**name, reg)?;
