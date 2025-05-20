@@ -1,3 +1,14 @@
 [workspace]
 resolver = "2"
 members = ["benlang", "cfg", "compiler", "parser", "vm"]
+
+
+[profile.release]
+opt-level = 0
+debug = true
+strip = false
+
+[profile.bench]
+opt-level = 0
+debug = true
+strip = false

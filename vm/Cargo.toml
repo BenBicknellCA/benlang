@@ -9,3 +9,7 @@ cfg = { path = "../cfg" }
 codegen = { path = "../compiler" }
 slotmap = "1.0.7"
 anyhow = "1.0.97"
+
+
+[features]
+vm_debug = []

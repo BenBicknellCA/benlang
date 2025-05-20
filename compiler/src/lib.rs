@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cfg::basic_block::BasicBlock;
 use cfg::ir::{ConstId, HIR};
 use cfg::ssa::SSABuilder;
-use cfg::{CFGBuilder, CFG};
+use cfg::{CFG, CFGBuilder};
 use parser::expr::{Assign, Binary, BinaryOp, Call, Expr, Unary, UnaryOp};
 use parser::expr_parser::ExprId;
 use parser::object::{Binding, FuncId, Function, Nonlocal, Scope, Variables};
@@ -13,6 +13,7 @@ use petgraph::graph::NodeIndex;
 use petgraph::visit::Dfs;
 use slotmap::{SecondaryMap, SlotMap};
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 pub type RegIdx = u8;
 
@@ -251,13 +252,7 @@ impl<'a> Compiler<'a> {
 
         let mut dfs = Dfs::new(graph, root);
 
-        let all_vars: Vec<Symbol> = self
-            .ssa
-            .var_defs
-            .0
-            .iter()
-            .flat_map(|pair| pair.1.keys().copied())
-            .collect();
+        let all_vars: Vec<&Symbol> = self.ssa.unique_vars.iter().collect();
         let mut func_scope = Scope::new();
 
         self.func_protos[self.func_id].free_reg =

@@ -77,7 +77,7 @@ impl CFGBuilder {
             .func_data
             .parent_to_children
             .remove(self.func_data.main)
-            .unwrap();
+            .expect("main key");
         self.build_func_cfg(self.func_data.main)?;
         for func in funcs {
             self.build_func_cfg(func)?;
@@ -107,6 +107,7 @@ impl CFGBuilder {
         self.func_to_ssa.insert(func, ssa);
 
         for param in &self.func_pool[func].params {
+            self.func_to_ssa[func].unique_vars.insert(*param);
             self.func_to_ssa[func].write_variable(*param, current_node, PhiOrExpr::Expr(nil))?;
         }
 

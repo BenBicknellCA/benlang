@@ -11,7 +11,7 @@ use petgraph::Direction;
 use petgraph::graph::NodeIndex;
 use slotmap::new_key_type;
 use std::cmp::PartialEq;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum PhiOrExpr {
@@ -42,6 +42,7 @@ pub struct SSABuilder {
     pub phis_to_block: PhisToBlock,
     pub phi_operands: PhiOperands,
     pub phi_users: PhiUsers,
+    pub unique_vars: BTreeSet<Symbol>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -50,6 +51,7 @@ pub struct User(NodeIndex, Symbol);
 impl SSABuilder {
     pub fn new(inital_node: NodeIndex, cfg: &CFG) -> Self {
         let mut ssa = Self {
+            unique_vars: BTreeSet::new(),
             incomplete_phis: IncompletePhis::new(),
             var_defs: VarDefs::new(),
             sealed_blocks: HashSet::new(),
@@ -127,6 +129,7 @@ impl SSABuilder {
     ) -> Result<()> {
         if let Some(map) = self.var_defs.get_mut(block) {
             map.insert(variable, value);
+            self.unique_vars.insert(variable);
             return Ok(());
         }
         Err(anyhow!(
