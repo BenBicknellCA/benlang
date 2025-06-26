@@ -13,3 +13,13 @@ anyhow = "1.0.97"
 
 [features]
 vm_debug = []
+
+[profile.release]
+opt-level = 1
+debug = true
+strip = false
+
+[profile.bench]
+opt-level = 1
+debug = true
+strip = false

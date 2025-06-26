@@ -1,7 +1,8 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
 use codegen::Compiler;
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use parser::Parser;
 use parser::scanner::Scanner;
 use vm::VM;

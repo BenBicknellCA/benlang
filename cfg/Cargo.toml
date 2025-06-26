@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 parser = { path = "../parser" }
-petgraph = "0.7.1"
+petgraph = "0.8.1"
 slotmap = "1.0.7"
-anyhow = "1.0.97"
+anyhow = "1.0.98"
 thiserror = "2.0.12"

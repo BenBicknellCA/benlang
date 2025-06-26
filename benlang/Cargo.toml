@@ -11,18 +11,16 @@ vm = { path = "../vm" }
 anyhow = "1.0.97"
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.6.0"
 
 [[bench]]
 harness = false
 name = "criterion_bench"
 
 [profile.release]
-opt-level = 0
 debug = true
 strip = false
 
 [profile.bench]
-opt-level = 0
 debug = true
 strip = false
