@@ -146,27 +146,24 @@ impl SSABuilder {
         block: NodeIndex,
         cfg: &CFG,
     ) -> Result<PhiOrExpr> {
-        if let Some(map) = self.var_defs.get(block) {
-            if let Some(phi_or_expr) = map.get(&variable) {
-                return Ok(*phi_or_expr);
-            }
+        if let Some(map) = self.var_defs.get(block)
+            && let Some(phi_or_expr) = map.get(&variable)
+        {
+            return Ok(*phi_or_expr);
         }
         self.read_variable_recursive(variable, block, cfg)
     }
     fn get_preds_count(block: NodeIndex, cfg: &CFG) -> usize {
-        let preds = SSABuilder::get_preds(block, cfg).count();
-        preds
+        SSABuilder::get_preds(block, cfg).count()
     }
     fn get_preds(block: NodeIndex, cfg: &CFG) -> petgraph::graph::Neighbors<Option<bool>> {
         cfg.neighbors_directed(block, Direction::Incoming)
     }
 
     fn get_single_pred(block: NodeIndex, cfg: &CFG) -> NodeIndex {
-        let pred = cfg
-            .neighbors_directed(block, Direction::Incoming)
+        cfg.neighbors_directed(block, Direction::Incoming)
             .next()
-            .unwrap();
-        pred
+            .unwrap()
     }
 
     fn add_new_phi_to_block(&mut self, block: NodeIndex) -> PhiId {

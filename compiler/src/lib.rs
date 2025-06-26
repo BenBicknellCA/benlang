@@ -13,7 +13,6 @@ use petgraph::graph::NodeIndex;
 use petgraph::visit::Dfs;
 use slotmap::{SecondaryMap, SlotMap};
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 pub type RegIdx = u8;
 
@@ -221,19 +220,14 @@ impl<'a> Compiler<'a> {
         let func: &Function = &self.func_pool[func_id];
         self.new_proto(func);
 
-        if let Some(name) = func.name {
-            if self
-                .func_data
-                .child_to_parent
-                .get(func_id)
-                .is_some_and(|parent| *parent == self.func_data.main)
-                && self.func_id == self.func_data.main
-            {
-                self.new_proto(func);
-                let name = self.emit_load_const(&Value::Literal(Literal::String(name)))?;
-                let src = self.emit_load_const(&Value::Literal(Literal::Function(func_id)))?;
-                self.func_protos[self.func_id].insert_op(OpCode::SetGlobal(src, name));
-            }
+        if let Some(name) = func.name
+            && self.func_data.child_to_parent.get(func_id).is_some()
+            && self.func_id == self.func_data.main
+        {
+            self.new_proto(func);
+            let name = self.emit_load_const(&Value::Literal(Literal::String(name)))?;
+            let src = self.emit_load_const(&Value::Literal(Literal::Function(func_id)))?;
+            self.func_protos[self.func_id].insert_op(OpCode::SetGlobal(src, name));
         }
 
         //        let dst = if func.name.is_some() {
@@ -559,7 +553,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn new_proto(&mut self, val: &Function) -> FuncId {
-        let mut count = 1;
+        let count = 1;
         let variables = Variables::new();
         let proto = FuncProto {
             variables,

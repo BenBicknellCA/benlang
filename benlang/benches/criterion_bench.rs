@@ -1,10 +1,10 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::Compiler;
+use compiler::Compiler;
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use parser::Parser;
 use parser::scanner::Scanner;
+use std::hint::black_box;
 use vm::VM;
 
 pub fn compiler_bench(c: &mut Criterion) {
@@ -19,13 +19,16 @@ pub fn compiler_bench(c: &mut Criterion) {
 
     let mut compiler = Compiler::new_from_id(&cfg_builder, main);
 
-    c.bench_function("compile fib 20", |b| {
-        b.iter(|| black_box(compiler.compile_all_funcs(black_box(&cfg_builder)).unwrap()))
+    c.bench_function("compile fib", |b| {
+        b.iter(|| {
+            compiler.compile_all_funcs(black_box(&cfg_builder)).unwrap();
+            black_box(())
+        })
     });
 }
 
 pub fn scanner_parser_bench(c: &mut Criterion) {
-    c.bench_function("scan parse fib 20", |b| {
+    c.bench_function("scan parse fib", |b| {
         b.iter(|| black_box(prep_parser_cfg()))
     });
 }
@@ -41,7 +44,10 @@ pub fn vm_bench(c: &mut Criterion) {
     let mut vm = VM::new(compiler.func_protos, cfg_builder.symbol_table, main);
 
     c.bench_function("vm-fib", |b| {
-        b.iter(|| black_box(vm.run_program().unwrap()))
+        b.iter(|| {
+            vm.run_program().unwrap();
+            black_box(())
+        })
     });
 }
 
@@ -68,6 +74,6 @@ criterion_group!(
     scanner_parser_bench,
     compiler_bench,
     vm_bench,
-//    control_flow_graph_bench
+    //    control_flow_graph_bench
 );
 criterion_main!(benches);
