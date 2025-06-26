@@ -154,7 +154,6 @@ impl SSABuilder {
         self.read_variable_recursive(variable, block, cfg)
     }
     fn get_preds_count(block: NodeIndex, cfg: &CFG) -> usize {
-        
         SSABuilder::get_preds(block, cfg).count()
     }
     fn get_preds(block: NodeIndex, cfg: &CFG) -> petgraph::graph::Neighbors<Option<bool>> {
@@ -162,9 +161,7 @@ impl SSABuilder {
     }
 
     fn get_single_pred(block: NodeIndex, cfg: &CFG) -> NodeIndex {
-        
-        cfg
-            .neighbors_directed(block, Direction::Incoming)
+        cfg.neighbors_directed(block, Direction::Incoming)
             .next()
             .unwrap()
     }

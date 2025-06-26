@@ -547,7 +547,6 @@ mod cfg_tests {
         let mut scanner = Scanner::new(SOURCE);
         scanner.scan();
 
-        
         Parser::new(scanner.tokens, scanner.interner)
     }
     fn build_cfg_builder() -> CFGBuilder {
@@ -558,7 +557,6 @@ mod cfg_tests {
         let func_data = parser.func_data;
         let func_pool = parser.func_pool;
 
-        
         CFGBuilder::new(parser.interner, main, func_data, func_pool)
     }
 
