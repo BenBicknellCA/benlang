@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::Compiler;
+use compiler::Compiler;
 use criterion::{Criterion, criterion_group, criterion_main};
 use parser::Parser;
 use parser::scanner::Scanner;
@@ -19,7 +19,7 @@ pub fn compiler_bench(c: &mut Criterion) {
 
     let mut compiler = Compiler::new_from_id(&cfg_builder, main);
 
-    c.bench_function("compile fib 20", |b| {
+    c.bench_function("compile fib", |b| {
         b.iter(|| {
             compiler.compile_all_funcs(black_box(&cfg_builder)).unwrap();
             black_box(())
@@ -28,7 +28,7 @@ pub fn compiler_bench(c: &mut Criterion) {
 }
 
 pub fn scanner_parser_bench(c: &mut Criterion) {
-    c.bench_function("scan parse fib 20", |b| {
+    c.bench_function("scan parse fib", |b| {
         b.iter(|| black_box(prep_parser_cfg()))
     });
 }

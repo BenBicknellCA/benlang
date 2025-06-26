@@ -3,8 +3,7 @@ use parser::value::Literal;
 use parser::value::Value;
 use slotmap::SecondaryMap;
 
-use codegen::OpCode;
-use codegen::{FuncProto, RegOrConst};
+use compiler::{FuncProto, OpCode, RegOrConst};
 use parser::object::FuncId;
 use parser::scanner::{Symbol, SymbolTable};
 use std::collections::HashMap;

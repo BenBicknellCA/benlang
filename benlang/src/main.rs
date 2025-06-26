@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cfg::CFGBuilder;
-use codegen::Compiler;
+use compiler::Compiler;
 use parser::Parser;
 use parser::scanner::Scanner;
 use vm::VM;

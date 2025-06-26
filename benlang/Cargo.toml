@@ -6,9 +6,9 @@ edition = "2024"
 [dependencies]
 parser = { path = "../parser" }
 cfg = { path = "../cfg" }
-codegen = { path = "../compiler" }
+compiler = { path = "../compiler" }
 vm = { path = "../vm" }
-anyhow = "1.0.97"
+anyhow = "1.0.98"
 
 [dev-dependencies]
 criterion = "0.6.0"
