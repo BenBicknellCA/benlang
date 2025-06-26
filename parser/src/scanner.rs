@@ -95,7 +95,7 @@ impl Token {
         if let Token::Identifier(symbol) = self {
             return symbol;
         }
-        panic!("{} is not a symbol", self);
+        panic!("{self} is not a symbol");
     }
 
     //    pub fn get_iden_symbol_unchecked(&self) -> Symbol {

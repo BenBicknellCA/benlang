@@ -114,7 +114,7 @@ impl Mul for Literal {
             let rhs = other.get_number().unwrap();
             return Literal::Number(lhs / rhs);
         }
-        panic!("Cannot mul {:?} * {:?}", self, other)
+        panic!("Cannot mul {self:?} * {other:?}")
     }
 }
 
@@ -128,7 +128,7 @@ impl Div for Literal {
             let rhs = other.get_number().unwrap();
             return Literal::Number(lhs / rhs);
         }
-        panic!("Cannot div {:?} / {:?}", self, other)
+        panic!("Cannot div {self:?} / {other:?}")
     }
 }
 
@@ -141,7 +141,7 @@ impl Add for Literal {
             let rhs = other.get_number().unwrap();
             return Literal::Number(lhs + rhs);
         }
-        panic!("Cannot add {:?} and {:?} with `+` operator", self, other)
+        panic!("Cannot add {self:?} and {other:?} with `+` operator")
     }
 }
 
@@ -154,7 +154,7 @@ impl Sub for Literal {
             let rhs = other.get_number().unwrap();
             return Literal::Number(lhs - rhs);
         }
-        panic!("Cannot add {:?} and {:?} with `+` operator", self, other)
+        panic!("Cannot add {self:?} and {other:?} with `+` operator")
     }
 }
 
@@ -173,7 +173,7 @@ impl Neg for Literal {
         if let Literal::Float(num) = self {
             return Literal::Float(num.neg());
         };
-        panic!("Cannot negate {:?}", self)
+        panic!("Cannot negate {self:?}")
     }
 }
 

@@ -3,7 +3,6 @@ use crate::stmt::Block;
 use slotmap::new_key_type;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::collections::HashSet;
 new_key_type! {pub struct FuncId; pub struct ObjId;}
 
 pub type UpvalueId = u8;

@@ -216,9 +216,7 @@ impl CFGBuilder {
 
     pub fn expr_to_hir(&self, expr_id: ExprId) -> Result<HIR> {
         let expr = &self.func_data.expr_pools[self.current_func][expr_id];
-        let hir = match &expr {
-            _ => HIR::Expr(expr_id),
-        };
+        let hir = HIR::Expr(expr_id);
         Ok(hir)
     }
 
@@ -549,8 +547,8 @@ mod cfg_tests {
         let mut scanner = Scanner::new(SOURCE);
         scanner.scan();
 
-        let mut parser = Parser::new(scanner.tokens, scanner.interner);
-        parser
+        
+        Parser::new(scanner.tokens, scanner.interner)
     }
     fn build_cfg_builder() -> CFGBuilder {
         let mut parser = prep_parser_cfg();
@@ -560,8 +558,8 @@ mod cfg_tests {
         let func_data = parser.func_data;
         let func_pool = parser.func_pool;
 
-        let mut cfg_builder = CFGBuilder::new(parser.interner, main, func_data, func_pool);
-        cfg_builder
+        
+        CFGBuilder::new(parser.interner, main, func_data, func_pool)
     }
 
     #[test]

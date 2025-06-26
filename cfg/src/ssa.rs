@@ -154,19 +154,19 @@ impl SSABuilder {
         self.read_variable_recursive(variable, block, cfg)
     }
     fn get_preds_count(block: NodeIndex, cfg: &CFG) -> usize {
-        let preds = SSABuilder::get_preds(block, cfg).count();
-        preds
+        
+        SSABuilder::get_preds(block, cfg).count()
     }
     fn get_preds(block: NodeIndex, cfg: &CFG) -> petgraph::graph::Neighbors<Option<bool>> {
         cfg.neighbors_directed(block, Direction::Incoming)
     }
 
     fn get_single_pred(block: NodeIndex, cfg: &CFG) -> NodeIndex {
-        let pred = cfg
+        
+        cfg
             .neighbors_directed(block, Direction::Incoming)
             .next()
-            .unwrap();
-        pred
+            .unwrap()
     }
 
     fn add_new_phi_to_block(&mut self, block: NodeIndex) -> PhiId {

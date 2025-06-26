@@ -428,8 +428,8 @@ pub(crate) mod parser_tests {
         let mut scanner = Scanner::new(source);
         scanner.scan();
 
-        let parser = Parser::new(scanner.tokens, scanner.interner);
-        parser
+        
+        Parser::new(scanner.tokens, scanner.interner)
     }
 
     #[test]

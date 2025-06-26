@@ -13,7 +13,6 @@ use petgraph::graph::NodeIndex;
 use petgraph::visit::Dfs;
 use slotmap::{SecondaryMap, SlotMap};
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 pub type RegIdx = u8;
 
@@ -554,7 +553,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn new_proto(&mut self, val: &Function) -> FuncId {
-        let mut count = 1;
+        let count = 1;
         let variables = Variables::new();
         let proto = FuncProto {
             variables,

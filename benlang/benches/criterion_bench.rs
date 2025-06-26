@@ -20,7 +20,10 @@ pub fn compiler_bench(c: &mut Criterion) {
     let mut compiler = Compiler::new_from_id(&cfg_builder, main);
 
     c.bench_function("compile fib 20", |b| {
-        b.iter(|| black_box(compiler.compile_all_funcs(black_box(&cfg_builder)).unwrap()))
+        b.iter(|| {
+            compiler.compile_all_funcs(black_box(&cfg_builder)).unwrap();
+            black_box(())
+        })
     });
 }
 
@@ -41,7 +44,10 @@ pub fn vm_bench(c: &mut Criterion) {
     let mut vm = VM::new(compiler.func_protos, cfg_builder.symbol_table, main);
 
     c.bench_function("vm-fib", |b| {
-        b.iter(|| black_box(vm.run_program().unwrap()))
+        b.iter(|| {
+            vm.run_program().unwrap();
+            black_box(())
+        })
     });
 }
 
