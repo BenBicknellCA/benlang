@@ -2,9 +2,9 @@ use anyhow::Result;
 use cfg::CFGBuilder;
 use codegen::Compiler;
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use parser::Parser;
 use parser::scanner::Scanner;
+use std::hint::black_box;
 use vm::VM;
 
 pub fn compiler_bench(c: &mut Criterion) {
@@ -68,6 +68,6 @@ criterion_group!(
     scanner_parser_bench,
     compiler_bench,
     vm_bench,
-//    control_flow_graph_bench
+    //    control_flow_graph_bench
 );
 criterion_main!(benches);

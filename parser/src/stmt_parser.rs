@@ -122,10 +122,10 @@ impl Parser {
         if self.check(Token::RightBrace).is_err() {
             while self.check(Token::RightBrace).is_err() {
                 let decl = self.declaration()?;
-                if let Some(stmt) = self.func_data.stmt_pools[self.current_func()].get(decl) {
-                    if stmt.is_term() {
-                        block.leaders.push(block.body.len() + 1);
-                    }
+                if let Some(stmt) = self.func_data.stmt_pools[self.current_func()].get(decl)
+                    && stmt.is_term()
+                {
+                    block.leaders.push(block.body.len() + 1);
                 }
                 block.add_stmt_id(decl);
             }

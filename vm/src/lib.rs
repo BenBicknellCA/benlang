@@ -44,7 +44,6 @@ impl RegisterStack {
     }
 }
 
-
 pub struct CallFrame {
     registers: RegisterStack,
     pub func: FuncId,
@@ -112,7 +111,6 @@ impl VM {
         }
     }
 
-
     pub fn return_from_frame(&mut self, fp: &mut usize) {
         *fp += 1;
         self.call_stack.pop();
@@ -137,9 +135,7 @@ impl VM {
     }
 
     fn eval(&mut self) -> Result<()> {
-
         loop {
-
             let instructions = &self.func_protos[self.call_stack[self.frame_pointer].func];
             let op = &instructions.bytecode[self.call_stack[self.frame_pointer].ip];
             let ip = self.call_stack[self.frame_pointer].ip;
@@ -241,8 +237,7 @@ impl VM {
                         Value::Literal(const_)
                     );
 
-                    self.call_stack[fp].registers.get_mut()[*dst as usize] =
-                        Value::Literal(const_);
+                    self.call_stack[fp].registers.get_mut()[*dst as usize] = Value::Literal(const_);
 
                     self.call_stack[self.frame_pointer].ip += 1;
                 }
@@ -288,7 +283,7 @@ impl VM {
                     let val_lhs = self.opnd(*lhs);
                     let val_rhs = self.opnd(*rhs);
                     #[cfg(feature = "vm_debug")]
-                    println!("{lhs:?}: {val_lhs:?} <= {rhs:?}: {val_rhs:?}", );
+                    println!("{lhs:?}: {val_lhs:?} <= {rhs:?}: {val_rhs:?}",);
                     if val_lhs <= val_rhs {
                         self.call_stack[self.frame_pointer].ip += 1;
                     }
@@ -354,10 +349,8 @@ impl VM {
                             self.call_stack[self.frame_pointer].registers.get()[arg + func_reg];
                     }
 
-
                     self.call_stack[self.frame_pointer].ip += 1;
                     self.frame_pointer += 1;
-
 
                     #[cfg(feature = "vm_debug")]
                     println!();
@@ -375,8 +368,7 @@ impl VM {
                     let ret_fp = self.call_stack[fp].return_frame;
                     let ret_reg = self.call_stack[fp].return_address;
 
-                    let ret_val =
-                        self.call_stack[fp].registers.get()[ret_val.get_reg()];
+                    let ret_val = self.call_stack[fp].registers.get()[ret_val.get_reg()];
                     #[cfg(feature = "vm_debug")]
                     println!("{ret_val:?}");
 

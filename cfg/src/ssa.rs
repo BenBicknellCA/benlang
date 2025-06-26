@@ -146,10 +146,10 @@ impl SSABuilder {
         block: NodeIndex,
         cfg: &CFG,
     ) -> Result<PhiOrExpr> {
-        if let Some(map) = self.var_defs.get(block) {
-            if let Some(phi_or_expr) = map.get(&variable) {
-                return Ok(*phi_or_expr);
-            }
+        if let Some(map) = self.var_defs.get(block)
+            && let Some(phi_or_expr) = map.get(&variable)
+        {
+            return Ok(*phi_or_expr);
         }
         self.read_variable_recursive(variable, block, cfg)
     }

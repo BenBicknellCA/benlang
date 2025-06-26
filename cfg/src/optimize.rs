@@ -115,14 +115,14 @@ impl CFGBuilder {
             expr_pool[binary_id] = Binary::new(folded_lhs, binary.op, folded_rhs).into();
         }
 
-        if let Expr::Value(lhs) = &expr_pool[folded_lhs] {
-            if let Expr::Value(rhs) = &expr_pool[folded_rhs] {
-                if !lhs.same_variant(rhs) {
-                    return Err(anyhow!("cannot fold different variants"));
-                }
-                if lhs.is_string_lit() && binary.op != BinaryOp::Plus {
-                    return Err(anyhow!("strings can only be concat"));
-                }
+        if let Expr::Value(lhs) = &expr_pool[folded_lhs]
+            && let Expr::Value(rhs) = &expr_pool[folded_rhs]
+        {
+            if !lhs.same_variant(rhs) {
+                return Err(anyhow!("cannot fold different variants"));
+            }
+            if lhs.is_string_lit() && binary.op != BinaryOp::Plus {
+                return Err(anyhow!("strings can only be concat"));
             }
         }
 
